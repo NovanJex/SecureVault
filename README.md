@@ -1,135 +1,206 @@
-# SecureVault 🔐
+<p align="center">
+  <img src="src-tauri/icons/icon.png" alt="SecureVault" width="128" height="128" />
+</p>
 
-> 纯本地、跨平台、高安全性的离线密码管理器 · [English](README_EN.md)
+<h1 align="center">SecureVault 🔐</h1>
 
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-blue)](https://github.com)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Tauri](https://img.shields.io/badge/Tauri-v2-FFC131)](https://tauri.app)
-[![React](https://img.shields.io/badge/React-19-61DAFB)](https://react.dev)
-[![Rust](https://img.shields.io/badge/Rust-🦀-orange)](https://www.rust-lang.org)
+<p align="center">
+  <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
+  <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
+  <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="license" />
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey" alt="platform" />
+</p>
 
-SecureVault 是一款基于 **Tauri v2 + React 19 + Rust** 构建的桌面密码管理器，支持 Windows、macOS 和 Linux。所有加密操作在 Rust 后端完成，数据 100% 本地存储，绝不联网。
+<p align="center">
+  <b>Zero-knowledge · Fully offline · Cross-platform desktop password manager</b>
+</p>
+
+<p align="center">
+  Built with <b>Tauri v2 + React 19 + Rust</b>. All cryptographic operations run in the Rust backend — your data stays 100% local, no network, no cloud, ever.
+</p>
+
+<p align="center">
+  📖 <a href="README_ZH.md">中文文档</a>
+</p>
 
 ---
 
-## 🔒 安全架构
+## 📥 Download
 
-| 层级 | 算法 | 说明 |
+| Platform | File | Size |
 | --- | --- | --- |
-| 密钥派生 | **Argon2id** (64MB) / **PBKDF2-SHA256** (100K iter) | 双算法可选，防 GPU/ASIC 暴力破解 |
-| 数据加密 | **AES-256-GCM** | 随机 Nonce，认证加密，防篡改 |
-| 存储位置 | 系统应用数据目录 | Windows `%APPDATA%` / macOS `Application Support` |
-| 文件写入 | 原子写入 (write-temp + rename) | 防断电损坏 |
-| 完整性 | **SHA-256 校验** | 导入备份时自动验证 |
+| Windows | `SecureVault_1.0.0_x64-setup.exe` | ~8 MB |
+| macOS | `SecureVault_1.0.0_universal.dmg` | ~10 MB |
+| Linux | `SecureVault_1.0.0_amd64.AppImage` | ~10 MB |
+
+> 🟢 **Portable**: Extract `secure-vault-desktop.exe` from the release archive and run directly — no installation required.
 
 ---
 
-## ✨ 功能
+## 🔒 Security Architecture
 
-- **四种凭证类型**：登录账号 / 虚拟卡券 / 安全备忘 / 密保资料
-- **文件夹分类 + 星标收藏**
-- **安全审计**：弱密码检测 / 复用碰撞 / 已知泄露特征匹配
-- **密码生成器**：随机字符 + BIP39 助记词短语（2048 词库）
-- **加密备份导入导出**：AES-256-GCM 加密 + SHA-256 校验
-- **自动锁定**：可配置超时，锁定时内存中的密钥和解密数据立即清除
-- **剪贴板防泄漏**：复制后自动清除
-- **启动 Splash 动画**：丝滑过渡到密码验证界面
+| Layer | Algorithm | Description |
+| --- | --- | --- |
+| Key Derivation | **Argon2id** (64MB) / **PBKDF2-SHA256** (100K iter) | Dual KDF, user-selectable, GPU/ASIC resistant |
+| Data Encryption | **AES-256-GCM** | Random 12-byte nonce, authenticated encryption, tamper-proof |
+| File I/O | Atomic write (temp + rename) | Prevents corruption on unexpected shutdown |
+| Integrity | **SHA-256** checksum | Verified on every backup import |
+| Storage | OS app data directory | `%APPDATA%` (Windows) / `Application Support` (macOS) |
 
 ---
 
-## 🛠️ 技术栈
+## ✨ Features
 
-| 层 | 技术 |
+### 🔐 Vault Management
+
+- **4 credential types** — Login / Card / Secure Note / Identity
+- **Folder organization** — custom folders with rename/delete
+- **Star favorites** — quick access to important items
+- **Auto-lock** — configurable idle timeout, sensitive data wiped from memory on lock
+
+### 🧬 Encryption & Backup
+
+- **Dual KDF** — Argon2id (default, recommended) or PBKDF2-SHA256
+- **Encrypted export** — AES-256-GCM backup with SHA-256 checksum
+- **Smart import** — merge or overwrite strategies, automatic integrity verification
+
+### 🔍 Security Audit
+
+- **Weak password detection** — Shannon entropy estimation
+- **Reuse collision** — cross-service password reuse detection
+- **Compromised check** — matches against known leaked password patterns
+- **One-click fix** — auto-generate strong replacement passwords
+
+### 🎲 Password Generator
+
+- **Random mode** — configurable length, character sets, exclude ambiguous chars
+- **Passphrase mode** — BIP39 2048-word standard, customizable separator, capitalization
+- **Entropy meter** — real-time entropy estimation with crack time projection
+- **History cache** — last generated passwords with one-click copy
+
+---
+
+## ⌨️ Shortcuts
+
+| Action | How |
 | --- | --- |
-| 桌面框架 | Tauri v2 |
-| 前端 | React 19 + TypeScript |
-| 加密后端 | Rust (aes-gcm, pbkdf2, argon2, sha2) |
-| UI 组件 | Tailwind CSS v4 + motion + lucide-react |
-| 构建 | Vite 6 + Cargo |
+| Create credential | Click "新建凭证" in sidebar |
+| Toggle password visibility | Click the 👁 button on any password field |
+| Copy to clipboard | Hover any field — copy button appears |
+| Lock vault | Click "立即锁定保险箱" in sidebar footer |
 
 ---
 
-## 📁 项目结构
+## 🛠️ Tech Stack
+
+| Technology | Usage |
+| --- | --- |
+| `Tauri v2` | Desktop framework — lightweight, native performance |
+| `React 19` | UI rendering layer |
+| `TypeScript` | Type-safe frontend logic |
+| `Rust` | Cryptographic backend (PBKDF2, Argon2, AES-256-GCM) |
+| `Tailwind CSS v4` | Utility-first styling |
+| `motion` | Animations and transitions |
+| `lucide-react` | Icon library |
+| `Vite 6` | Frontend bundler |
+
+---
+
+## 📁 Project Structure
 
 ```text
 src/
-├── components/       # 8 个 UI 组件
-│   ├── LockScreen.tsx         # 锁屏/创建主密码
-│   ├── CredentialDetail.tsx   # 凭证详情
-│   ├── PasswordGenerator.tsx  # 密码生成器
-│   ├── SecurityAudit.tsx      # 安全审计
-│   ├── SplashScreen.tsx       # 启动动画
-│   └── FolderModal.tsx, DeleteConfirmModal.tsx, ImportPasswordModal.tsx
-├── hooks/            # 3 个业务 Hook
-│   ├── useVault.ts            # 加解密 / CRUD / 自动保存
-│   ├── usePasswordGenerator.ts
-│   └── useSecurityAudit.ts
-├── utils/            # 3 个工具模块
-│   ├── tauriBridge.ts         # Tauri IPC 桥接
-│   ├── vaultStorage.ts        # 加密存储操作
-│   └── wordlist.ts            # BIP39 2048 词库
-├── App.tsx           # 主组件
-├── main.tsx          # 入口
-├── types.ts          # 类型定义
-└── index.css         # 全局样式 + 动画
+├── components/          # 8 UI components
+│   ├── LockScreen.tsx            # vault lock / master password creation
+│   ├── CredentialDetail.tsx      # credential detail view
+│   ├── PasswordGenerator.tsx     # password & passphrase generator
+│   ├── SecurityAudit.tsx         # security audit dashboard
+│   ├── SplashScreen.tsx          # startup splash animation
+│   └── FolderModal / DeleteConfirmModal / ImportPasswordModal
+├── hooks/               # 3 custom React hooks
+│   ├── useVault.ts               # encryption, CRUD, auto-save
+│   ├── usePasswordGenerator.ts   # generation logic
+│   └── useSecurityAudit.ts       # audit calculation
+├── utils/               # 3 utility modules
+│   ├── tauriBridge.ts            # Tauri IPC wrapper
+│   ├── vaultStorage.ts           # encrypted storage operations
+│   └── wordlist.ts               # BIP39 2048 English word list
+├── App.tsx              # main application component
+├── main.tsx             # entry point
+└── index.css            # global styles & animations
 src-tauri/
-├── src/main.rs       # Rust 加密后端 (7 个 Tauri 命令)
-├── Cargo.toml        # Rust 依赖
-└── tauri.conf.json   # Tauri 配置
+├── src/main.rs          # Rust crypto backend (7 Tauri commands)
+├── Cargo.toml           # Rust dependencies
+├── capabilities/        # Tauri plugin permissions
+└── icons/               # application icons (PNG, ICO, ICNS)
 ```
 
 ---
 
-## 🚀 本地开发
+## 🚀 Build from Source
 
-### 环境要求
+### Prerequisites
 
-- [Node.js](https://nodejs.org) 18+
-- [Rust](https://www.rust-lang.org/tools/install)
-- Windows: Visual Studio C++ 生成工具
+- **Node.js** 18+
+- **Rust** (via [rustup](https://rustup.rs))
+- **Windows**: [Visual Studio C++ Build Tools](https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022)
 
-### 启动
+### Development
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 启动 Tauri 桌面调试模式
+# Launch Tauri desktop dev mode (hot reload)
 npm run tauri dev
 
-# TypeScript 类型检查
+# TypeScript type check
 npm run typecheck
 ```
 
-### 打包
+### Production Build
 
 ```bash
 npm run tauri build
 ```
 
-产物在 `src-tauri/target/release/bundle/nsis/`（Windows NSIS 安装器）。
-
-绿色免安装版：`src-tauri/target/release/secure-vault-desktop.exe` 可直接运行。
+Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 ---
 
-## ☁️ 自动构建 (GitHub Actions)
+## ☁️ CI/CD (GitHub Actions)
 
-本项目已配置 [publish.yml](.github/workflows/publish.yml)，推送版本标签自动构建三端安装包。
+Push a version tag to trigger automatic cross-platform builds:
 
-> **使用前**：仓库 Settings → Actions → General → Workflow permissions → 勾选 **Read and write permissions**
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
 
----
-
-## ⚠️ 安全声明
-
-- **不联网**：无任何网络请求，可完全断网运行
-- **主密码不存盘**：仅内存中保留派生密钥，锁定时立即擦除
-- **无后门**：主密码遗失后无法恢复数据，需强制重置
-- **XOR 加密已移除**：当前版本全部使用 Rust AES-256-GCM 真实加密
+> ⚠️ **Before first use**: Repository Settings → Actions → General → Workflow permissions → **Read and write permissions**.
 
 ---
 
-## 📄 开源许可
+## 📝 Version History
 
-[MIT License](LICENSE) — 自由使用、修改、分发。
+| Version | Date | Notes |
+| --- | --- | --- |
+| `v1.0.0` | 2024-07 | Initial release — full vault, dual KDF, audit, generator |
+
+---
+
+## 🤝 Contributing
+
+Issues and pull requests are welcome. For major changes, please open an issue first to discuss.
+
+## 📄 License
+
+[MIT License](LICENSE) © 2024 SecureVault — free to use, modify, and distribute.
+
+---
+
+<p align="center">
+  <sub>🔐 100% Client-Side Pure Local Cryptography Sandbox</sub>
+</p>
