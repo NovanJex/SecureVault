@@ -84,14 +84,15 @@ jobs:
         shell: bash
         run: |
           BIN="src-tauri/target/release/secure-vault-desktop.exe"
-          VERSION="${{ github.ref_name }}"
+          VERSION="${{ github.ref_name }}"        # v1.0.0
+          VER="${VERSION#v}"                      # 1.0.0（去掉 v 前缀，与 Tauri 产物命名一致）
 
-          # 构建干净的目录结构: SecureVault/SecureVault_v1.0.0_Windows.exe
+          # 构建干净的目录结构: SecureVault/SecureVault_1.0.0_Windows.exe
           STAGING="SecureVault"
           mkdir -p "$STAGING"
-          cp "$BIN" "$STAGING/SecureVault_${VERSION}_Windows.exe"
+          cp "$BIN" "$STAGING/SecureVault_${VER}_Windows.exe"
 
-          ZIP="SecureVault_${VERSION}_Windows.zip"
+          ZIP="SecureVault_${VER}_Windows.zip"
           7z a "$ZIP" "$STAGING"
 
           gh release upload "${{ github.ref_name }}" "$ZIP" --repo ${{ github.repository }}
