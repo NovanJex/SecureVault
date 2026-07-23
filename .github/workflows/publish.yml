@@ -72,7 +72,7 @@ jobs:
 
       # 5. 调用 Tauri 自动化打包 Actions（此插件是官方维护，极其安全稳健）
       - name: Build Tauri App and Publish to GitHub Releases
-        uses: tauri-apps/tauri-action@v2
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
