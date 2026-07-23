@@ -18,11 +18,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - platform: 'macos-latest' # 自动打包 macOS (.dmg)
-            args: '--target universal-apple-darwin' # 打包 macOS 双架构通用单文件包 (支持 Intel 和 Apple Silicon)
-          - platform: 'windows-latest' # 自动打包 Windows (.exe, .msi)
+          - platform: 'macos-latest'
+            args: '--target aarch64-apple-darwin'
+          - platform: 'windows-latest'
             args: ''
-          - platform: 'ubuntu-22.04' # 自动打包 Linux (.AppImage, .deb)
+          - platform: 'ubuntu-22.04'
             args: ''
 
     runs-on: ${{ matrix.platform }}
@@ -42,7 +42,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           # 打包 macOS Universal App 时需要添加这两个 Target
-          targets: ${{ matrix.platform == 'macos-latest' && 'x86_64-apple-darwin,aarch64-apple-darwin' || '' }}
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -76,9 +76,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tagName: "${{ github.ref_type == 'tag' && github.ref_name || 'latest-build' }}"
-          releaseName: "SecureVault Desktop ${{ github.ref_type == 'tag' && github.ref_name || 'Latest Build' }}"
+          tagName: v__VERSION__
+          releaseName: 'SecureVault v__VERSION__'
           releaseBody: 'SecureVault 桌面端多端单文件免安装版。自动构建于 GitHub Actions 云环境。'
-          releaseDraft: true # 创建为草稿，方便您在发布前手动核对和填写说明 (确认无误后可在 GitHub 页面上点 Publish)
+          releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
