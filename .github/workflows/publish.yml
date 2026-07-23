@@ -3,10 +3,9 @@ name: "Tauri Cross-Platform Build & Publish"
 on:
   push:
     tags:
-      - 'v*' # 当推送形如 v1.0.0, v2.0.0 的版本标签时触发自动打包与发布
-  workflow_dispatch: # 允许在 GitHub Actions 页面上手动点击一键触发打包
+      - 'v*'
+  workflow_dispatch:
 
-# 授予发布权限
 permissions:
   contents: write
 
@@ -21,35 +20,33 @@ jobs:
           - platform: 'macos-latest'
             args: '--target aarch64-apple-darwin'
           - platform: 'windows-latest'
-            args: ''
           - platform: 'ubuntu-22.04'
-            args: ''
 
     runs-on: ${{ matrix.platform }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1. 设置 Node.js 环境与缓存
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
-      # 2. 安装 Rust 编译器与缓存
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Add macOS Rust targets
+        if: matrix.platform == 'macos-latest'
+        uses: dtolnay/rust-toolchain@stable
         with:
-          # 打包 macOS Universal App 时需要添加这两个 Target
-          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin' || '' }}
+          targets: aarch64-apple-darwin
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      # 3. 安装 Linux 运行及编译所必需的底层系统依赖包 (仅 Linux 编译需要)
       - name: Install Linux system dependencies
         if: matrix.platform == 'ubuntu-22.04'
         run: |
@@ -64,21 +61,20 @@ jobs:
             libgtk-3-dev \
             libayatana-appindicator3-dev \
             librsvg2-dev \
+            patchelf \
             squashfs-tools
 
-      # 4. 安装前端 Web 依赖
       - name: Install node dependencies
-        run: npm ci
+        run: npm install
 
-      # 5. 调用 Tauri 自动化打包 Actions（此插件是官方维护，极其安全稳健）
       - name: Build Tauri App and Publish to GitHub Releases
-        uses: tauri-apps/tauri-action@v0.5
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: v__VERSION__
           releaseName: 'SecureVault v__VERSION__'
-          releaseBody: 'SecureVault 桌面端多端单文件免安装版。自动构建于 GitHub Actions 云环境。'
+          releaseBody: 'SecureVault 桌面端多端安装包。自动构建于 GitHub Actions 云环境。'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
