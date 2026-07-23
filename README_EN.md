@@ -170,24 +170,11 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 ---
 
-## ☁️ CI/CD (GitHub Actions)
-
-Push a version tag to trigger automatic cross-platform builds:
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-> ⚠️ **Before first use**: Repository Settings → Actions → General → Workflow permissions → **Read and write permissions**.
-
----
-
 ## 📝 Version History
 
 | Version | Date | Notes |
 | --- | --- | --- |
-| `v1.0.0` | 2024-07 | Initial release — full vault, dual KDF, audit, generator |
+| `v1.0.0` | 2026-07-23 | Initial release — full vault, dual KDF, audit, generator |
 
 ---
 

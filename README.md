@@ -170,24 +170,11 @@ npm run tauri build
 
 ---
 
-## ☁️ 自动构建（GitHub Actions）
-
-推送版本标签即可触发三端自动构建：
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-> ⚠️ **首次使用前**：仓库 Settings → Actions → General → Workflow permissions → 勾选 **Read and write permissions**。
-
----
-
 ## 📝 版本历史
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
-| `v1.0.0` | 2024-07 | 首次发布 — 完整保险箱、双 KDF、审计、密码生成器 |
+| `v1.0.0` | 2026-07-23 | 首次发布 — 完整保险箱、双 KDF、审计、密码生成器 |
 
 ---
 
