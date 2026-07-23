@@ -33,11 +33,11 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 
 | Platform | Installer | Portable |
 | --- | --- | --- |
-| Windows | `SecureVault_x64-setup.exe` | `secure-vault-desktop.exe` (run directly) |
+| Windows | `SecureVault_x64-setup.exe` | `SecureVault_vX.X.X_Windows.zip`（extract and run） |
 | macOS | `SecureVault_aarch64.dmg` | Drag to Applications |
 | Linux | `SecureVault_amd64.AppImage` | `chmod +x` and run
 
-> 🟢 **Portable**: Extract `secure-vault-desktop.exe` from the release archive and run directly — no installation required.
+> 🟢 **Portable**: Extract the ZIP, open the `SecureVault` folder, and run `SecureVault_vX.X.X_Windows.exe` directly — no installation required.
 
 ---
 

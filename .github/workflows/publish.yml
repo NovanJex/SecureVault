@@ -84,8 +84,16 @@ jobs:
         shell: bash
         run: |
           BIN="src-tauri/target/release/secure-vault-desktop.exe"
-          ZIP="SecureVault_${{ github.ref_name }}_Windows.zip"
-          7z a "$ZIP" "$BIN"
+          VERSION="${{ github.ref_name }}"
+
+          # 构建干净的目录结构: SecureVault/SecureVault_v1.0.0_Windows.exe
+          STAGING="SecureVault"
+          mkdir -p "$STAGING"
+          cp "$BIN" "$STAGING/SecureVault_${VERSION}_Windows.exe"
+
+          ZIP="SecureVault_${VERSION}_Windows.zip"
+          7z a "$ZIP" "$STAGING"
+
           gh release upload "${{ github.ref_name }}" "$ZIP" --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

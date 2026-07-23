@@ -33,7 +33,7 @@
 
 | 平台 | 安装包 | 绿色免安装 |
 | --- | --- | --- |
-| Windows | `SecureVault_x64-setup.exe` | `secure-vault-desktop.exe`（直接运行） |
+| Windows | `SecureVault_x64-setup.exe` | `SecureVault_vX.X.X_Windows.zip`（解压即用） |
 | macOS | `SecureVault_aarch64.dmg` | 拖入 Applications 即可 |
 | Linux | `SecureVault_amd64.AppImage` | `chmod +x` 后直接运行 |
 
