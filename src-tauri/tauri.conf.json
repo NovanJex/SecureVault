@@ -37,6 +37,9 @@
       "nsis": {
         "languages": ["SimpChinese", "English"],
         "installMode": "perMachine"
+      },
+      "wix": {
+        "language": "zh-CN"
       }
     }
   }
