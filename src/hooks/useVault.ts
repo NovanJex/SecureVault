@@ -12,6 +12,7 @@ import {
   type VaultPayload,
 } from "../utils/vaultStorage";
 import { encryptVault, decryptVault, deriveMasterKey, computeSha256 } from "../utils/tauriBridge";
+import { getVersion } from '@tauri-apps/api/app';
 
 const EMPTY_VAULT: VaultPayload = {
   items: [],
@@ -232,8 +233,10 @@ export function useVault(): UseVaultReturn {
   const exportData = useCallback(async (): Promise<string | null> => {
     if (!masterKey) return null;
 
+    const appVersion = await getVersion();
+
     const plainPayload = JSON.stringify({
-      version: "2.0.0",
+      version: appVersion,
       exportedAt: new Date().toISOString(),
       folders,
       vaultItems,
@@ -243,7 +246,7 @@ export function useVault(): UseVaultReturn {
     const encryptedPayload = await encryptVault(plainPayload, masterKey);
     return JSON.stringify({
       isEncrypted: true,
-      version: "2.1.0",
+      version: appVersion,
       salt: vaultSalt,
       checksum,
       encryptedPayload,
