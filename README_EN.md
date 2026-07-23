@@ -176,11 +176,15 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 | --- | --- | --- |
 | `v1.0.0` | 2026-07-23 | Initial release — full vault, dual KDF, audit, generator |
 
+> See [CHANGELOG.md](CHANGELOG.md) for details.
+
 ---
 
 ## 🤝 Contributing
 
 Issues and pull requests are welcome. For major changes, please open an issue first to discuss.
+
+> See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
@@ -188,6 +192,10 @@ Issues and pull requests are welcome. For major changes, please open an issue fi
 
 ---
 
+## ⭐ Star History
+
 <p align="center">
-  <sub>🔐 100% Client-Side Pure Local Cryptography Sandbox</sub>
+  <a href="https://star-history.com/#NovanJex/SecureVault-Desktop&Date">
+    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault-Desktop&type=Date" alt="Star History Chart" />
+  </a>
 </p>

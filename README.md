@@ -176,11 +176,15 @@ npm run tauri build
 | --- | --- | --- |
 | `v1.0.0` | 2026-07-23 | 首次发布 — 完整保险箱、双 KDF、审计、密码生成器 |
 
+> 详见 [CHANGELOG.md](CHANGELOG.md)
+
 ---
 
 ## 🤝 参与贡献
 
 欢迎提交 Issue 和 Pull Request。重大变更请先开 Issue 讨论。
+
+> 详见 [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 📄 开源许可
 
@@ -188,6 +192,10 @@ npm run tauri build
 
 ---
 
+## ⭐ Star History
+
 <p align="center">
-  <sub>🔐 100% 纯本地 客户端密码学沙箱</sub>
+  <a href="https://star-history.com/#NovanJex/SecureVault-Desktop&Date">
+    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault-Desktop&type=Date" alt="Star History Chart" />
+  </a>
 </p>
