@@ -29,11 +29,13 @@
 
 ## 📥 Download
 
-| Platform | File | Size |
+Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/releases):
+
+| Platform | Installer | Portable |
 | --- | --- | --- |
-| Windows | `SecureVault_1.0.0_x64-setup.exe` | ~8 MB |
-| macOS | `SecureVault_1.0.0_universal.dmg` | ~10 MB |
-| Linux | `SecureVault_1.0.0_amd64.AppImage` | ~10 MB |
+| Windows | `SecureVault_x64-setup.exe` | `secure-vault-desktop.exe` (run directly) |
+| macOS | `SecureVault_aarch64.dmg` | Drag to Applications |
+| Linux | `SecureVault_amd64.AppImage` | `chmod +x` and run
 
 > 🟢 **Portable**: Extract `secure-vault-desktop.exe` from the release archive and run directly — no installation required.
 
@@ -195,7 +197,7 @@ Issues and pull requests are welcome. For major changes, please open an issue fi
 ## ⭐ Star History
 
 <p align="center">
-  <a href="https://star-history.com/#NovanJex/SecureVault-Desktop&Date">
-    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault-Desktop&type=Date" alt="Star History Chart" />
+  <a href="https://star-history.com/#NovanJex/SecureVault&Date">
+    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault&type=Date" alt="Star History Chart" />
   </a>
 </p>

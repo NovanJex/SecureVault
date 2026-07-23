@@ -78,3 +78,23 @@ jobs:
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: Upload portable binary to release
+        shell: bash
+        run: |
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
+            BIN="src-tauri/target/release/secure-vault-desktop.exe"
+            ZIP="SecureVault_${{ github.ref_name }}_portable_windows.zip"
+            7z a "$ZIP" "$BIN"
+          elif [ "${{ matrix.platform }}" = "macos-latest" ]; then
+            BIN="src-tauri/target/aarch64-apple-darwin/release/secure-vault-desktop"
+            ZIP="SecureVault_${{ github.ref_name }}_portable_macos.zip"
+            zip -j "$ZIP" "$BIN"
+          else
+            BIN="src-tauri/target/release/secure-vault-desktop"
+            ZIP="SecureVault_${{ github.ref_name }}_portable_linux.zip"
+            zip -j "$ZIP" "$BIN"
+          fi
+          gh release upload "${{ github.ref_name }}" "$ZIP" --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

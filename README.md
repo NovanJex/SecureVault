@@ -29,13 +29,13 @@
 
 ## 📥 下载
 
-| 平台 | 文件 | 大小 |
-| --- | --- | --- |
-| Windows | `SecureVault_1.0.0_x64-setup.exe` | ~8 MB |
-| macOS | `SecureVault_1.0.0_universal.dmg` | ~10 MB |
-| Linux | `SecureVault_1.0.0_amd64.AppImage` | ~10 MB |
+前往 [Releases](https://github.com/NovanJex/SecureVault/releases) 页面下载最新版本：
 
-> 🟢 **绿色免安装**：从 Release 压缩包中提取 `secure-vault-desktop.exe` 即可直接运行，无需安装。
+| 平台 | 安装包 | 绿色免安装 |
+| --- | --- | --- |
+| Windows | `SecureVault_x64-setup.exe` | `secure-vault-desktop.exe`（直接运行） |
+| macOS | `SecureVault_aarch64.dmg` | 拖入 Applications 即可 |
+| Linux | `SecureVault_amd64.AppImage` | `chmod +x` 后直接运行 |
 
 ---
 
@@ -182,20 +182,22 @@ npm run tauri build
 
 ## 🤝 参与贡献
 
-欢迎提交 Issue 和 Pull Request。重大变更请先开 Issue 讨论。
+欢迎提交 Issue 和 Pull Request。
 
 > 详见 [CONTRIBUTING.md](CONTRIBUTING.md)
 
 ## 📄 开源许可
 
-[MIT License](LICENSE) © 2024 SecureVault — 自由使用、修改、分发。
+本项目采用 [MIT License](LICENSE) — 可自由使用、修改和分发。
 
 ---
 
 ## ⭐ Star History
 
+如果你觉得这个项目有用，请给一个 Star ⭐ 支持一下！
+
 <p align="center">
-  <a href="https://star-history.com/#NovanJex/SecureVault-Desktop&Date">
-    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault-Desktop&type=Date" alt="Star History Chart" />
+  <a href="https://star-history.com/#NovanJex/SecureVault&Date">
+    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault&type=Date" alt="Star History Chart" />
   </a>
 </p>
