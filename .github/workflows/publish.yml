@@ -74,27 +74,18 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: 'SecureVault v__VERSION__'
-          releaseBody: 'SecureVault 桌面端多端安装包。自动构建于 GitHub Actions 云环境。'
+          releaseBody: '🔐 SecureVault - 纯本地离线密码管理器，桌面多系统单文件免安装版。采用 Argon2id/PBKDF2 密钥派生搭配 AES-256-GCM 加密，数据 100% 本地存储，程序绝不联网。'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
 
-      - name: Upload portable binary to release
+      - name: Upload Windows portable binary
+        if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
-            BIN="src-tauri/target/release/secure-vault-desktop.exe"
-            ZIP="SecureVault_${{ github.ref_name }}_portable_windows.zip"
-            7z a "$ZIP" "$BIN"
-          elif [ "${{ matrix.platform }}" = "macos-latest" ]; then
-            BIN="src-tauri/target/aarch64-apple-darwin/release/secure-vault-desktop"
-            ZIP="SecureVault_${{ github.ref_name }}_portable_macos.zip"
-            zip -j "$ZIP" "$BIN"
-          else
-            BIN="src-tauri/target/release/secure-vault-desktop"
-            ZIP="SecureVault_${{ github.ref_name }}_portable_linux.zip"
-            zip -j "$ZIP" "$BIN"
-          fi
+          BIN="src-tauri/target/release/secure-vault-desktop.exe"
+          ZIP="SecureVault_${{ github.ref_name }}_绿色免安装.zip"
+          7z a "$ZIP" "$BIN"
           gh release upload "${{ github.ref_name }}" "$ZIP" --repo ${{ github.repository }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

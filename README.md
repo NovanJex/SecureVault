@@ -196,8 +196,4 @@ npm run tauri build
 
 如果你觉得这个项目有用，请给一个 Star ⭐ 支持一下！
 
-<p align="center">
-  <a href="https://star-history.com/#NovanJex/SecureVault&Date">
-    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault&type=Date" alt="Star History Chart" />
-  </a>
-</p>
+[![Star History Chart](https://api.star-history.com/svg?repos=NovanJex/SecureVault&type=Date)](https://star-history.com/#NovanJex/SecureVault&Date)
