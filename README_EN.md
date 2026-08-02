@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault 🔐</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -176,6 +176,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.1.0` | 2026-08-02 | Browser extension hub, Argon2id extension support, portable fixes, backup kdf |
 | `v1.0.0` | 2026-07-23 | Initial release — full vault, dual KDF, audit, generator |
 
 > See [CHANGELOG.md](CHANGELOG.md) for details.

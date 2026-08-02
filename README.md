@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault 🔐</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.1.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -174,6 +174,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.1.0` | 2026-08-02 | 浏览器扩展中心、Argon2id 扩展支持、便携包修复、备份 kdf 标注 |
 | `v1.0.0` | 2026-07-23 | 首次发布 — 完整保险箱、双 KDF、审计、密码生成器 |
 
 > 详见 [CHANGELOG.md](CHANGELOG.md)
@@ -198,6 +199,6 @@ npm run tauri build
 
 <p align="center">
   <a href="https://star-history.com/#NovanJex/SecureVault&Date">
-    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault&type=Date" alt="Star History Chart" />
+    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault&type=Date" alt="Star History Chart">
   </a>
 </p>

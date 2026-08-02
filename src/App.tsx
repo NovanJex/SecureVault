@@ -31,7 +31,8 @@ import {
   X,
   Star,
   Settings,
-  Upload
+  Upload,
+  Chrome
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
@@ -52,6 +53,7 @@ import { SplashScreen } from "./components/SplashScreen";
 import { CredentialDetail } from "./components/CredentialDetail";
 import { SecurityAudit } from "./components/SecurityAudit";
 import { PasswordGenerator } from "./components/PasswordGenerator";
+import { BrowserExtensionHub } from "./components/BrowserExtensionHub";
 
 export default function App() {
   // ===== 保险箱核心 Hook =====
@@ -386,6 +388,7 @@ export default function App() {
   const handleStartCreate = (type: ItemType) => {
     setIsCreating(true);
     setIsEditing(false);
+    setSelectedFolder("all");
     setSelectedItemId(null);
     setFormType(type);
 
@@ -845,6 +848,20 @@ export default function App() {
                                   </span>
                                 )}
                               </button>
+
+                              <button
+                                onClick={() => { setSelectedFolder("extension"); setSelectedItemType("all"); setSelectedItemId(null); setIsCreating(false); setIsEditing(false); }}
+                                className={`w-full text-left px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                  selectedFolder === "extension"
+                                    ? "bg-indigo-50 text-indigo-700"
+                                    : "text-slate-600 hover:bg-slate-200"
+                                }`}
+                              >
+                                <span className="flex items-center space-x-2">
+                                  <Chrome className={`w-3.5 h-3.5 ${selectedFolder === "extension" ? "text-indigo-600" : ""}`} />
+                                  <span>浏览器插件包</span>
+                                </span>
+                              </button>
                             </div>
                           </div>
 
@@ -1054,7 +1071,7 @@ export default function App() {
                       <div className="flex-1 flex flex-col md:flex-row overflow-hidden w-full">
 
                         {/* MIDDLE PANEL: CREDENTIALS LIST (DYNAMIC SPACIOUS CREDENTIALS HUB) */}
-                        {selectedFolder !== "audit" && selectedFolder !== "generator" && selectedFolder !== "settings" ? (
+                        {selectedFolder !== "audit" && selectedFolder !== "generator" && selectedFolder !== "settings" && selectedFolder !== "extension" ? (
                           <div className={`bg-slate-50/50 flex-col overflow-hidden ${selectedItemId !== null || isCreating || isEditing ? "hidden" : "flex-1 flex"}`}>
 
                         {/* Dynamic Search Header */}
@@ -1721,9 +1738,28 @@ export default function App() {
                           calculateEntropy={calculateEntropy}
                           calculatePassphraseEntropy={calculatePassphraseEntropy}
                         />
+                      ) : selectedFolder === "extension" ? (
+                        <BrowserExtensionHub
+                          vaultItems={vaultItems}
+                          getEncryptedPayload={exportData}
+                          selectedKdf={selectedKdf}
+                          showToast={showToast}
+                        />
                       ) : null}
 
                     </div>
+
+                    {/* EXTENSION PANEL: 独立 wrapper，无 flex-1，高度自适应 */}
+                    {selectedFolder === "extension" ? (
+                      <div className="flex flex-col bg-slate-50">
+                        <BrowserExtensionHub
+                          vaultItems={vaultItems}
+                          getEncryptedPayload={exportData}
+                          selectedKdf={selectedKdf}
+                          showToast={showToast}
+                        />
+                      </div>
+                    ) : null}
 
                     </div> {/* Closes panels container */}
 

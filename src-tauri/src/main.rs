@@ -188,6 +188,15 @@ fn compute_sha256(content: String) -> String {
     format!("{:x}", hasher.finalize())
 }
 
+// 9. 将 Base64 编码的二进制数据写入文件（用于导出浏览器扩展 ZIP）
+#[tauri::command]
+fn write_binary_file(path: String, data_b64: String) -> Result<(), String> {
+    let bytes = BASE64.decode(data_b64)
+        .map_err(|e| format!("Base64 解码失败: {}", e))?;
+    std::fs::write(&path, &bytes)
+        .map_err(|e| format!("写入二进制文件失败: {}", e))
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -206,7 +215,8 @@ fn main() {
             load_vault_file,
             write_export_file,
             read_export_file,
-            compute_sha256
+            compute_sha256,
+            write_binary_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

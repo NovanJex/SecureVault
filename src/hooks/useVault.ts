@@ -247,12 +247,13 @@ export function useVault(): UseVaultReturn {
     return JSON.stringify({
       isEncrypted: true,
       version: appVersion,
+      kdf: selectedKdf,
       salt: vaultSalt,
       checksum,
       encryptedPayload,
       hint: "SecureVault 加密备份 — 受主密码保护，含 SHA-256 完整性校验。",
     }, null, 2);
-  }, [masterKey, vaultSalt, folders, vaultItems]);
+  }, [masterKey, vaultSalt, folders, vaultItems, selectedKdf]);
 
   /** 导入备份数据（自动验证 SHA-256 完整性） */
   const importData = useCallback(async (jsonStr: string, strategy: "merge" | "overwrite") => {
