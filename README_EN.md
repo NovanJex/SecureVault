@@ -37,6 +37,8 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 | macOS | `SecureVault_aarch64.dmg` | Drag to Applications |
 | Linux | `SecureVault_amd64.AppImage` | `chmod +x` and run
 
+> 🍎 **macOS tip**: If you see "app is damaged", run `xattr -cr /Applications/SecureVault.app` in Terminal and reopen.
+>
 > 🟢 **Portable**: Extract the ZIP, open the `SecureVault` folder, and run `SecureVault_X.X.X_Windows.exe` directly — no installation required.
 
 ---
@@ -49,7 +51,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 | Data Encryption | **AES-256-GCM** | Random 12-byte nonce, authenticated encryption, tamper-proof |
 | File I/O | Atomic write (temp + rename) | Prevents corruption on unexpected shutdown |
 | Integrity | **SHA-256** checksum | Verified on every backup import |
-| Storage | OS app data directory | `%APPDATA%` (Windows) / `Application Support` (macOS) |
+| Storage | OS app data directory | `%LOCALAPPDATA%` (Windows) / `Application Support` (macOS) |
 
 ---
 

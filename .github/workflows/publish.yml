@@ -79,6 +79,17 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
+      - name: Ad-hoc codesign macOS app
+        if: matrix.platform == 'macos-latest'
+        run: |
+          APP="src-tauri/target/release/bundle/dmg/SecureVault.app"
+          if [ -d "$APP" ]; then
+            codesign --force --deep --sign - "$APP"
+            echo "✅ Ad-hoc signed $APP"
+          else
+            echo "⚠️  $APP not found, skipping codesign"
+          fi
+
       - name: Upload Windows portable binary
         if: matrix.platform == 'windows-latest'
         shell: bash

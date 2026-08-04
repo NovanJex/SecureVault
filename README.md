@@ -37,6 +37,8 @@
 | macOS | `SecureVault_aarch64.dmg` | 拖入 Applications 即可 |
 | Linux | `SecureVault_amd64.AppImage` | `chmod +x` 后直接运行 |
 
+> 🍎 **macOS 提示**：如打开时提示"已损坏"，在终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开即可。
+
 ---
 
 ## 🔒 安全架构
@@ -47,7 +49,7 @@
 | 数据加密 | **AES-256-GCM** | 随机 Nonce，认证加密，防篡改 |
 | 文件写入 | 原子写入（临时文件 + 重命名） | 防止意外断电导致数据损坏 |
 | 完整性校验 | **SHA-256** | 导入备份时自动验证 |
-| 存储位置 | 系统应用数据目录 | Windows `%APPDATA%` / macOS `Application Support` |
+| 存储位置 | 系统应用数据目录 | Windows `%LOCALAPPDATA%` / macOS `Application Support` |
 
 ---
 
