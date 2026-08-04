@@ -178,7 +178,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
-| `v1.1.1` | 2026-08-02 | macOS codesign fix, README storage path correction |
+| `v1.1.1` | 2026-08-04 | macOS codesign fix, README storage path correction |
 | `v1.1.0` | 2026-08-02 | Browser extension hub, Argon2id extension support, portable fixes, backup kdf |
 | `v1.0.0` | 2026-07-23 | Initial release — full vault, dual KDF, audit, generator |
 

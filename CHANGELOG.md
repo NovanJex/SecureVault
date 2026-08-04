@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## v1.1.1 (2026-08-02)
+## v1.1.1 (2026-08-04)
 
 ### 🔧 Fixes
 
