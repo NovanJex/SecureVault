@@ -38,6 +38,8 @@
 | Linux | `SecureVault_amd64.AppImage` | `chmod +x` 后直接运行 |
 
 > 🍎 **macOS 提示**：如打开时提示"已损坏"，在终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开即可。
+>
+> 🐧 **Linux 提示**：老系统 (Ubuntu 20.04-) 需执行 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统 (Ubuntu 24.04+) 如缺少 libfuse2，运行 `./SecureVault_amd64.AppImage --appimage-extract-and-run` 即可。
 
 ---
 

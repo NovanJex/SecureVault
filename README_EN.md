@@ -39,6 +39,8 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 
 > 🍎 **macOS tip**: If you see "app is damaged", run `xattr -cr /Applications/SecureVault.app` in Terminal and reopen.
 >
+> 🐧 **Linux tip**: Older distros (Ubuntu 20.04-): `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`. Newer distros (Ubuntu 24.04+) missing libfuse2: run `./SecureVault_amd64.AppImage --appimage-extract-and-run`.
+>
 > 🟢 **Portable**: Extract the ZIP, open the `SecureVault` folder, and run `SecureVault_X.X.X_Windows.exe` directly — no installation required.
 
 ---
