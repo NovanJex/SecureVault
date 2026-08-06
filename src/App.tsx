@@ -32,7 +32,8 @@ import {
   Star,
   Settings,
   Upload,
-  Chrome
+  Chrome,
+  Globe
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
@@ -54,6 +55,8 @@ import { CredentialDetail } from "./components/CredentialDetail";
 import { SecurityAudit } from "./components/SecurityAudit";
 import { PasswordGenerator } from "./components/PasswordGenerator";
 import { BrowserExtensionHub } from "./components/BrowserExtensionHub";
+import { BrowserImportPreview } from "./components/BrowserImportPreview";
+import { importBrowserCsv, checkDuplicates, type ImportResult } from "./utils/browserImport";
 
 export default function App() {
   // ===== 保险箱核心 Hook =====
@@ -62,7 +65,7 @@ export default function App() {
     isDeriving, derivationProgress, unlockError,
     vaultItems, folders, autoLockTimeout,
     selectedKdf, setSelectedKdf,
-    createMasterPassword, unlockVault, lockVault, forceResetVault,
+    createMasterPassword, unlockVault, lockVault, forceResetVault, changeMasterPassword,
     setVaultItems, setFolders, setAutoLockTimeout, setUnlockError,
     masterKey, vaultSalt,
     exportData, importData,
@@ -153,6 +156,27 @@ export default function App() {
   const [importPasswordError, setImportPasswordError] = useState<string>("");
   const [isImportDecrypting, setIsImportDecrypting] = useState(false);
   const [importDecryptProgress, setImportDecryptProgress] = useState("");
+
+  // 浏览器密码导入
+  const [showBrowserImport, setShowBrowserImport] = useState(false);
+  const [browserImportResult, setBrowserImportResult] = useState<ImportResult | null>(null);
+  const [browserImportDups, setBrowserImportDups] = useState(0);
+  const [browserImportStrategy, setBrowserImportStrategy] = useState<"merge" | "skip-duplicates">("merge");
+
+  // 修改主密码
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [changePwOld, setChangePwOld] = useState("");
+  const [changePwNew, setChangePwNew] = useState("");
+  const [changePwConfirm, setChangePwConfirm] = useState("");
+  const [changePwError, setChangePwError] = useState("");
+  const [changePwNewKdf, setChangePwNewKdf] = useState<"argon2id" | "pbkdf2">("argon2id");
+  const [isChangingPw, setIsChangingPw] = useState(false);
+  const [changePwProgress, setChangePwProgress] = useState("");
+  const [showChangePwOld, setShowChangePwOld] = useState(false);
+  const [showChangePwNew, setShowChangePwNew] = useState(false);
+  const [showChangePwConfirm, setShowChangePwConfirm] = useState(false);
+  const [autoLockOpen, setAutoLockOpen] = useState(false);
+  const [changePwKdfOpen, setChangePwKdfOpen] = useState(false);
 
   // ===== 启动 Splash =====
   const [isInitializingApp, setIsInitializingApp] = useState(true);
@@ -627,6 +651,111 @@ export default function App() {
     }
   };
 
+  // 浏览器密码 CSV 导入
+  const handleBrowserImport = async () => {
+    try {
+      const selected = await open({
+        filters: [{ name: 'CSV 密码文件', extensions: ['csv'] }],
+        multiple: false,
+      });
+      if (!selected) return;
+
+      const filePath = Array.isArray(selected) ? selected[0] : selected as string;
+      if (!filePath) return;
+
+      let content: string;
+      try {
+        content = await invoke<string>('read_export_file', { path: filePath });
+      } catch (e) {
+        console.error("读取文件失败:", e);
+        showToast(`❌ 文件读取失败: ${String(e)}`);
+        return;
+      }
+
+      let result: ImportResult;
+      try {
+        result = importBrowserCsv(content);
+      } catch (e) {
+        console.error("CSV 解析失败:", e);
+        showToast(`❌ CSV 解析错误: ${String(e)}`);
+        return;
+      }
+
+      if (result.browserType === "unknown" || result.items.length === 0) {
+        setBrowserImportResult(result);
+        setBrowserImportDups(0);
+        setShowBrowserImport(true);
+        return;
+      }
+
+      const dupCheck = checkDuplicates(result.items, vaultItems);
+      setBrowserImportDups(dupCheck.duplicates);
+      setBrowserImportResult({ ...result, items: dupCheck.items });
+      setShowBrowserImport(true);
+    } catch (err) {
+      console.error("浏览器导入失败:", err);
+      showToast(`❌ 导入失败: ${String(err)}`);
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePwError("");
+
+    if (!changePwNew.trim() || changePwNew.length < 8) {
+      setChangePwError("新主密码长度至少需要 8 位");
+      return;
+    }
+    if (changePwNew !== changePwConfirm) {
+      setChangePwError("两次输入的新密码不一致");
+      return;
+    }
+
+    setIsChangingPw(true);
+    setChangePwProgress("");
+    const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
+    try {
+      setChangePwProgress("🔑 正在验证旧密码...");
+      await delay(200);
+      await changeMasterPassword(changePwOld, changePwNew, changePwNewKdf);
+
+      setChangePwProgress("🧬 正在用新密码重新加密保险箱...");
+      await delay(150);
+
+      setChangePwProgress("✅ 主密码修改成功！即将锁定...");
+      showToast("✅ 主密码修改成功！请用新密码重新解锁");
+
+      setTimeout(() => {
+        handleLockVault();
+        setShowChangePassword(false);
+        setChangePwOld(""); setChangePwNew(""); setChangePwConfirm("");
+        setShowChangePwOld(false); setShowChangePwNew(false); setShowChangePwConfirm(false);
+        setChangePwProgress("");
+        setIsChangingPw(false);
+      }, 800);
+    } catch {
+      setChangePwError("❌ 旧密码错误，请重新输入");
+      setIsChangingPw(false);
+      setChangePwProgress("");
+    }
+  };
+
+  const handleBrowserImportConfirm = () => {
+    if (!browserImportResult) return;
+
+    const toImport = browserImportStrategy === "skip-duplicates"
+      ? browserImportResult.items.filter(i => !i.title.includes("(重复)"))
+      : browserImportResult.items;
+
+    if (toImport.length > 0) {
+      setVaultItems(prev => [...toImport, ...prev]);
+      showToast(`✅ 已导入 ${toImport.length} 条浏览器密码记录`);
+    }
+
+    setShowBrowserImport(false);
+    setBrowserImportResult(null);
+  };
+
   // 处理导入密码模态框提交 — 含进度动画
   const handleImportPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -698,7 +827,7 @@ export default function App() {
   // 审计统计来自 useSecurityAudit Hook (auditResult)
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col antialiased relative overflow-hidden select-none">
+    <div className="h-screen bg-slate-50 text-slate-900 flex flex-col antialiased relative overflow-hidden select-none">
       {/* 1.1 PREMIUM APP INITIALIZATION SPLASH */}
       <SplashScreen visible={isInitializingApp} loadingStep={initialLoadingStep} />
 
@@ -1066,9 +1195,9 @@ export default function App() {
                     </div> {/* Closes Left Panel */}
 
                     {/* RIGHT CONTENT AREA: MIDDLE PANEL + DETAILS PANEL + BOTTOM STATUS BAR */}
-                    <div className="flex-1 flex flex-col overflow-hidden w-full">
+                    <div className="flex-1 min-h-0 flex flex-col w-full">
                       
-                      <div className="flex-1 flex flex-col md:flex-row overflow-hidden w-full">
+                      <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden w-full">
 
                         {/* MIDDLE PANEL: CREDENTIALS LIST (DYNAMIC SPACIOUS CREDENTIALS HUB) */}
                         {selectedFolder !== "audit" && selectedFolder !== "generator" && selectedFolder !== "settings" && selectedFolder !== "extension" ? (
@@ -1216,7 +1345,7 @@ export default function App() {
                         /* CREATE / EDIT FORM VIEW */
                         <div className="flex-1 flex flex-col overflow-hidden font-sans bg-slate-50">
                           {/* Top Header */}
-                          <div className="pt-4 pb-3 px-4 md:px-6 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 font-sans">
+                          <div className="pt-3 pb-2 px-4 md:px-6 bg-slate-50 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 font-sans">
                             <div className="flex items-center space-x-2 text-left">
                               <Lock className="w-5 h-5 text-indigo-500 shrink-0" />
                               <div>
@@ -1235,8 +1364,8 @@ export default function App() {
                           </div>
 
                           {/* Form Body Container with Slate Background */}
-                          <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
-                            <form onSubmit={handleSaveItem} noValidate className="max-w-5xl mx-auto bg-white border border-slate-200/80 rounded-2xl p-6 md:p-8 shadow-sm space-y-5">
+                          <div className="flex-1 overflow-y-auto p-3 md:p-6 bg-slate-50">
+                            <form onSubmit={handleSaveItem} noValidate className="max-w-5xl mx-auto bg-white border border-slate-200/80 rounded-2xl p-5 md:p-6 shadow-sm space-y-5">
                               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
                               <Lock className="w-4 h-4 text-indigo-500" />
@@ -1541,7 +1670,7 @@ export default function App() {
                         /* RENDER BEAUTIFUL SETTINGS VIEW */
                         <div className="flex-1 flex flex-col overflow-hidden font-sans bg-slate-50">
                           {/* Header panel */}
-                          <div className="pt-4 pb-3 px-4 md:px-6 bg-slate-50 flex items-center justify-between gap-4 shrink-0">
+                          <div className="pt-3 pb-2 px-4 md:px-6 bg-slate-50 flex items-center justify-between gap-4 shrink-0">
                             <div className="flex items-center space-x-2 text-left">
                               <Settings className="w-5 h-5 text-indigo-600 shrink-0" />
                               <div>
@@ -1552,7 +1681,7 @@ export default function App() {
                           </div>
 
                           {/* Scrollable container */}
-                          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-8 bg-slate-50">
+                          <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 md:p-6 bg-slate-50">
                             <div className="max-w-4xl mx-auto space-y-6">
 
                               {/* Backup and restore card */}
@@ -1645,48 +1774,177 @@ export default function App() {
                                 </div>
                               </div>
 
-                              {/* Auto-Lock Settings Panel */}
-                              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4 text-left">
-                                <div className="border-b border-slate-100 pb-3">
-                                  <div className="flex items-center space-x-2">
-                                    <Lock className="w-4 h-4 text-indigo-500" />
-                                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-wide">
-                                      自动锁定功能设置
-                                    </h4>
+                              {/* Password Management Tools */}
+                              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm text-left">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                  {/* 左：导入浏览器密码 */}
+                                  <div className="space-y-2.5">
+                                    <div>
+                                      <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
+                                        <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                                        <span>导入浏览器密码</span>
+                                      </h5>
+                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">支持 Chrome、Edge、Firefox 导出的 CSV 一键导入。</p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleBrowserImport}
+                                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded-lg transition shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer font-sans"
+                                    >
+                                      <Globe className="w-3.5 h-3.5" />
+                                      <span>选择 CSV 文件</span>
+                                    </button>
                                   </div>
-                                  <p className="text-[10px] text-slate-400 mt-1.5 leading-relaxed">
-                                    为了保障您的隐私安全，在设定时间内无活动、应用退至后台或系统休眠时，系统均能秒级响应并安全自动上锁。
+
+                                  {/* 右：自动锁定 */}
+                                  <div className="space-y-2.5 md:border-l md:border-slate-100 md:pl-6">
+                                    <div>
+                                      <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
+                                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                                        <span>自动锁定</span>
+                                      </h5>
+                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">超时后自动擦除内存中的密钥。</p>
+                                    </div>
+                                    <div className="relative">
+                                      <button type="button" onClick={() => setAutoLockOpen(!autoLockOpen)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-700 outline-none focus:border-indigo-500 cursor-pointer flex items-center justify-between transition-all">
+                                        <span className="font-semibold text-slate-800">{getTimeoutLabel(autoLockTimeout)}</span>
+                                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${autoLockOpen ? "rotate-180 text-indigo-500" : ""}`} />
+                                      </button>
+                                      {autoLockOpen && (
+                                        <>
+                                          <div className="fixed inset-0 z-10 cursor-default" onClick={() => setAutoLockOpen(false)} />
+                                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200/90 rounded-lg shadow-lg py-1 z-20">
+                                            {[0, 1, 5, 15, 30, 60].map(val => (
+                                              <button key={val} type="button" onClick={() => { setAutoLockTimeout(val); setAutoLockOpen(false); showToast(`🔒 自动锁定超时已设置为: ${getTimeoutLabel(val)}`); }}
+                                                className={`w-full text-left px-2.5 py-1.5 text-[11px] flex items-center justify-between transition-colors cursor-pointer ${autoLockTimeout === val ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-50"}`}>
+                                                <span>{val === 0 ? "从不锁定 (不推荐)" : `${getTimeoutLabel(val)}`}</span>
+                                                {autoLockTimeout === val && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Change Master Password */}
+                              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4 text-left">
+                                <div className="border-b border-slate-100 pb-4">
+                                  <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
+                                    <KeyRound className="w-4 h-4 text-indigo-500" />
+                                    <span>修改主密码</span>
+                                  </h4>
+                                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                    验证旧密码后即可更换新主密码，可选切换 KDF 算法。保险箱数据将用新密码重新加密保存。
                                   </p>
                                 </div>
 
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-                                  <div className="space-y-0.5">
-                                    <label className="block text-[11px] font-bold text-slate-700 tracking-wide">
-                                      自动锁定超时时长
-                                    </label>
-                                    <p className="text-[10px] text-slate-400">
-                                      设定无键盘或鼠标操作的超时锁闭阈值，加锁时将安全擦除内存中的明文密钥。
-                                    </p>
-                                  </div>
-                                  <div className="w-full sm:w-48 shrink-0">
-                                    <select
-                                      value={autoLockTimeout}
-                                      onChange={(e) => {
-                                        const val = Number(e.target.value);
-                                        setAutoLockTimeout(val);
-                                        showToast(`🔒 自动锁定超时已设置为: ${getTimeoutLabel(val)}`);
-                                      }}
-                                      className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-semibold cursor-pointer transition-all"
-                                    >
-                                      <option value={0}>从不锁定 (不推荐)</option>
-                                      <option value={1}>1 分钟</option>
-                                      <option value={5}>5 分钟</option>
-                                      <option value={15}>15 分钟</option>
-                                      <option value={30}>30 分钟</option>
-                                      <option value={60}>1 小时</option>
-                                    </select>
-                                  </div>
-                                </div>
+                                {!showChangePassword ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowChangePassword(true)}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md cursor-pointer font-sans"
+                                  >
+                                    修改主密码
+                                  </button>
+                                ) : (
+                                  <form onSubmit={handleChangePassword} className="space-y-3" noValidate>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">旧主密码</label>
+                                      <div className="relative">
+                                        <input type={showChangePwOld ? "text" : "password"} required value={changePwOld}
+                                          onChange={(e) => { setChangePwOld(e.target.value); setChangePwError(""); }}
+                                          className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg pl-3 pr-8 py-2 text-xs outline-none text-slate-800" />
+                                        <button type="button"
+                                          onClick={() => setShowChangePwOld(!showChangePwOld)}
+                                          className="absolute right-2 top-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                                          title={showChangePwOld ? "隐藏" : "显示"}>
+                                          {showChangePwOld ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                        </button>
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">新主密码（≥8位）</label>
+                                        <div className="relative">
+                                          <input type={showChangePwNew ? "text" : "password"} required value={changePwNew}
+                                            onChange={(e) => { setChangePwNew(e.target.value); setChangePwError(""); }}
+                                            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg pl-3 pr-8 py-2 text-xs outline-none text-slate-800" />
+                                          <button type="button"
+                                            onClick={() => setShowChangePwNew(!showChangePwNew)}
+                                            className="absolute right-2 top-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                                            title={showChangePwNew ? "隐藏" : "显示"}>
+                                            {showChangePwNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                          </button>
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">确认新密码</label>
+                                        <div className="relative">
+                                          <input type={showChangePwConfirm ? "text" : "password"} required value={changePwConfirm}
+                                            onChange={(e) => { setChangePwConfirm(e.target.value); setChangePwError(""); }}
+                                            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 rounded-lg pl-3 pr-8 py-2 text-xs outline-none text-slate-800" />
+                                          <button type="button"
+                                            onClick={() => setShowChangePwConfirm(!showChangePwConfirm)}
+                                            className="absolute right-2 top-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                                            title={showChangePwConfirm ? "隐藏" : "显示"}>
+                                            {showChangePwConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">加密算法</label>
+                                      <div className="relative">
+                                        <button type="button" onClick={() => setChangePwKdfOpen(!changePwKdfOpen)}
+                                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-500 cursor-pointer flex items-center justify-between transition-all">
+                                          <span className="flex items-center space-x-1.5 font-semibold text-slate-800">
+                                            <span className="text-sm shrink-0">{changePwNewKdf === "argon2id" ? "🛡️" : "⚙️"}</span>
+                                            <span>{changePwNewKdf === "argon2id" ? "Argon2id（推荐，抗GPU）" : "PBKDF2-SHA256（10万次）"}</span>
+                                          </span>
+                                          <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${changePwKdfOpen ? "rotate-180 text-indigo-500" : ""}`} />
+                                        </button>
+                                        {changePwKdfOpen && (
+                                          <>
+                                            <div className="fixed inset-0 z-10 cursor-default" onClick={() => setChangePwKdfOpen(false)} />
+                                            <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200/90 rounded-lg shadow-lg py-1 z-20">
+                                              {(["argon2id", "pbkdf2"] as const).map(k => (
+                                                <button key={k} type="button" onClick={() => { setChangePwNewKdf(k); setChangePwKdfOpen(false); }}
+                                                  className={`w-full text-left px-3 py-2 text-xs flex items-center space-x-2 transition-colors cursor-pointer ${changePwNewKdf === k ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-50"}`}>
+                                                  <span className="text-sm shrink-0">{k === "argon2id" ? "🛡️" : "⚙️"}</span>
+                                                  <span className="flex-1 truncate">{k === "argon2id" ? "Argon2id（推荐，抗GPU）" : "PBKDF2-SHA256（10万次）"}</span>
+                                                  {changePwNewKdf === k && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                                                </button>
+                                              ))}
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                    </div>
+                                    {changePwError && (
+                                      <p className="text-[10px] text-rose-600 font-medium">{changePwError}</p>
+                                    )}
+                                    <div className="flex space-x-2">
+                                      {!isChangingPw && (
+                                        <button type="button"
+                                          onClick={() => { setShowChangePassword(false); setShowChangePwOld(false); setShowChangePwNew(false); setShowChangePwConfirm(false); setChangePwError(""); }}
+                                          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition-colors cursor-pointer">取消</button>
+                                      )}
+                                      <button type="submit" disabled={isChangingPw}
+                                        className={`flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500 text-white font-bold text-xs py-2 rounded-lg transition-all shadow-sm cursor-pointer ${isChangingPw ? "flex-[2]" : ""}`}>
+                                        {isChangingPw ? (
+                                          <span className="flex items-center justify-center space-x-1.5">
+                                            <RefreshCw className="w-3 h-3 animate-spin" />
+                                            <span>{changePwProgress || "正在处理..."}</span>
+                                          </span>
+                                        ) : "确认修改"}
+                                      </button>
+                                    </div>
+                                  </form>
+                                )}
                               </div>
 
                             </div>
@@ -1861,6 +2119,22 @@ export default function App() {
             setImportPasswordError("");
             setIsImportDecrypting(false);
             setImportDecryptProgress("");
+          }}
+        />
+      )}
+
+      {/* Browser Password Import Preview Modal */}
+      {showBrowserImport && browserImportResult && (
+        <BrowserImportPreview
+          importResult={browserImportResult}
+          duplicates={browserImportDups}
+          existingCount={vaultItems.length}
+          importStrategy={browserImportStrategy}
+          setImportStrategy={setBrowserImportStrategy}
+          onConfirm={handleBrowserImportConfirm}
+          onCancel={() => {
+            setShowBrowserImport(false);
+            setBrowserImportResult(null);
           }}
         />
       )}

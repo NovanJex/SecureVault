@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault 🔐</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.1.1-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -178,6 +178,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.2.0` | 2026-08-07 | 浏览器密码导入、修改主密码、设置页重组、GBK 编码修复 |
 | `v1.1.1` | 2026-08-04 | macOS 签名修复、README 存储路径更正 |
 | `v1.1.0` | 2026-08-02 | 浏览器扩展中心、Argon2id 扩展支持、便携包修复、备份 kdf 标注 |
 | `v1.0.0` | 2026-07-23 | 首次发布 — 完整保险箱、双 KDF、审计、密码生成器 |

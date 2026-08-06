@@ -19,6 +19,7 @@ argon2 = "0.5"
 rand = "0.8.5"
 base64 = "0.22.1"
 tokio = { version = "1.37.0", features = ["full"] }
+encoding_rs = "0.8"
 tauri-plugin-clipboard-manager = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"

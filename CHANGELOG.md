@@ -4,6 +4,37 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.2.0 (2026-08-07)
+
+### 🆕 Browser Password Import
+
+- Import passwords from Chrome/Edge/Firefox CSV export files
+- Auto-detect browser format, domain-based duplicate detection
+- Preview with infinite scroll, password reveal, skip/merge strategy
+- Automatic encoding detection (UTF-8/GBK/UTF-16)
+
+### 🆕 Change Master Password
+
+- Settings panel entry to change master password
+- Support switching KDF algorithm (Argon2id ↔ PBKDF2)
+- Auto-lock after success to verify new password
+
+### 🔧 Fixes
+
+- Critical fix: `storedCiphertext` not synced after password change, preventing unlock
+- Fix `unlock` stale closure missing `selectedKdf` dependency
+- GitHub Actions: `checkout@v5` + `setup-node@v6` (Node.js 24)
+- Fix Chinese CSV import encoding errors (GBK detection)
+
+### 🔨 Improvements
+
+- Settings page layout restructured
+- Native selects replaced with custom dropdowns (matching LockScreen style)
+- Sidebar fixed, content area scrolls independently
+- Backup JSON now includes `kdf` field
+
+---
+
 ## v1.1.1 (2026-08-04)
 
 ### 🔧 Fixes

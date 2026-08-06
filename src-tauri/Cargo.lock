@@ -2950,6 +2950,7 @@ dependencies = [
  "aes-gcm",
  "argon2",
  "base64 0.22.1",
+ "encoding_rs",
  "pbkdf2",
  "rand",
  "serde",

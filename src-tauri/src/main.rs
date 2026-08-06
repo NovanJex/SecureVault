@@ -172,11 +172,31 @@ fn write_export_file(path: String, content: String) -> Result<(), String> {
         .map_err(|e| format!("写入导出文件失败: {}", e))
 }
 
-// 7. 从用户指定的文件路径读取文本（用于导入备份）
+// 7. 从用户指定的文件路径读取文本（用于导入备份，自动检测 UTF-8/GBK/UTF-16 编码）
 #[tauri::command]
 fn read_export_file(path: String) -> Result<String, String> {
-    std::fs::read_to_string(&path)
-        .map_err(|e| format!("读取导入文件失败: {}", e))
+    let bytes = std::fs::read(&path)
+        .map_err(|e| format!("读取导入文件失败: {}", e))?;
+
+    // 1. 尝试 UTF-8
+    if let Ok(s) = String::from_utf8(bytes.clone()) {
+        return Ok(s);
+    }
+
+    // 2. 尝试 GBK（中文 Windows 系统编码）
+    let (cow, _, had_errors) = encoding_rs::GBK.decode(&bytes);
+    if !had_errors {
+        return Ok(cow.into_owned());
+    }
+
+    // 3. 尝试 UTF-16 LE（Windows 默认 Unicode 编码）
+    let (cow, _, had_errors) = encoding_rs::UTF_16LE.decode(&bytes);
+    if !had_errors {
+        return Ok(cow.into_owned());
+    }
+
+    // 4. 最终兜底：UTF-8 lossy
+    Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
 // 8. 计算字符串的 SHA-256 哈希（用于导出文件完整性校验）

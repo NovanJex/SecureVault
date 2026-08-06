@@ -39,6 +39,7 @@ export interface UseVaultReturn {
   unlockVault: (password: string) => Promise<void>;
   lockVault: () => Promise<void>;
   forceResetVault: () => Promise<void>;
+  changeMasterPassword: (oldPass: string, newPass: string, newKdf?: "argon2id" | "pbkdf2") => Promise<void>;
 
   // 数据操作
   setVaultItems: React.Dispatch<React.SetStateAction<VaultItem[]>>;
@@ -202,7 +203,7 @@ export function useVault(): UseVaultReturn {
       setIsDeriving(false);
       throw err;
     }
-  }, [vaultSalt, storedCiphertext]);
+  }, [vaultSalt, storedCiphertext, selectedKdf]);
 
   /** 锁定保险箱 — 等待保存完成后清除内存中的敏感数据 */
   const lockVault = useCallback(async () => {
@@ -226,6 +227,39 @@ export function useVault(): UseVaultReturn {
     setIsFirstTime(true);
     setIsLocked(true);
   }, []);
+
+  /** 修改主密码：旧密码验证 → 新密码重新加密 → 更新 salt/密钥 */
+  const changeMasterPassword = useCallback(async (
+    oldPass: string,
+    newPass: string,
+    newKdf?: "argon2id" | "pbkdf2"
+  ) => {
+    if (!vaultSalt || !storedCiphertext) {
+      throw new Error("保险箱未初始化，无法修改主密码");
+    }
+    if (!newPass.trim() || newPass.length < 8) {
+      throw new Error("新主密码长度至少需要 8 位");
+    }
+
+    const kdf = newKdf || selectedKdf;
+
+    // 1. 用旧密码验证身份（尝试解密 vault，失败则抛异常）
+    await unlockVaultFile(oldPass, vaultSalt, storedCiphertext, selectedKdf);
+
+    // 2. 用新密码 + 新 salt 重新加密并保存
+    const currentData: VaultPayload = { items: vaultItems, folders, autoLockTimeout };
+    const { salt: newSalt, masterKey: newKey } = await createVaultFile(newPass, currentData, kdf);
+
+    // 3. 重新读取 vault.enc 获取新密文（salt 同上，但密文必须同步获取）
+    const raw = await loadVaultRaw();
+    if (!raw) throw new Error("保险箱文件保存失败");
+
+    // 4. 原子性更新所有相关状态
+    setMasterKey(newKey);
+    setVaultSalt(raw.salt);
+    setStoredCiphertext(raw.ciphertext);
+    if (newKdf) setSelectedKdf(newKdf);
+  }, [vaultSalt, storedCiphertext, selectedKdf, vaultItems, folders, autoLockTimeout]);
 
   // ===== 导入导出 =====
 
@@ -311,6 +345,7 @@ export function useVault(): UseVaultReturn {
     unlockVault: unlock,
     lockVault,
     forceResetVault,
+    changeMasterPassword,
     setVaultItems, setFolders, setAutoLockTimeout, setUnlockError,
     masterKey, vaultSalt,
     exportData, importData,
