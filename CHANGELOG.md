@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.3.1 (2026-08-08)
+
+### 🔧 Fixes
+
+- Import button labels updated to cover all supported formats (CSV + JSON)
+- README version badge and history corrected
+- CHANGELOG version references fixed
+
+---
+
 ## v1.3.0 (2026-08-08)
 
 ### 🆕 Browser Password Import — Phase 2

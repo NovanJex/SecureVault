@@ -44,7 +44,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
   const [activeGuideTab, setActiveGuideTab] = useState<"chromium" | "firefox" | "safari" | "mobile">("chromium");
   const [isGeneratingZip, setIsGeneratingZip] = useState(false);
   const [copiedSyncText, setCopiedSyncText] = useState(false);
-  const [appVersion, setAppVersion] = useState("1.0.0");
+  const [appVersion, setAppVersion] = useState("1.3.1");
 
   // 模拟器状态
   const [simDomain, setSimDomain] = useState("github.com");
