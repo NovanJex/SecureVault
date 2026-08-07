@@ -74,7 +74,16 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: 'SecureVault v__VERSION__'
-          releaseBody: '🔐 SecureVault - 纯本地离线密码管理器，桌面多系统单文件免安装版。采用 Argon2id/PBKDF2 密钥派生搭配 AES-256-GCM 加密，数据 100% 本地存储，程序绝不联网。'
+          releaseBody: |
+            🔐 **SecureVault** — 纯本地零知识跨平台桌面密码管理器。Argon2id/PBKDF2 + AES-256-GCM 加密，数据 100% 本地存储不联网。
+
+            ### 功能亮点
+            - 浏览器密码一键导入（Chrome/Edge/Firefox/Safari/1Password/LastPass/Bitwarden）
+            - 一键打包 Manifest V3 浏览器扩展（离线解密 + 域名匹配 + 自动填充）
+            - 修改主密码 / 切换 KDF 加密算法
+            - 安全审计、密码生成器、加密备份导出/导入
+
+            > 详细更新日志见 [CHANGELOG.md](https://github.com/NovanJex/SecureVault/blob/main/CHANGELOG.md)
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
