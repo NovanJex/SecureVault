@@ -25,6 +25,11 @@ interface BrowserImportPreviewProps {
 const browserLabel: Record<string, string> = {
   chrome: "Chrome / Edge",
   firefox: "Firefox",
+  "1password": "1Password",
+  lastpass: "LastPass",
+  "bitwarden-csv": "Bitwarden (CSV)",
+  "bitwarden-json": "Bitwarden (JSON)",
+  safari: "Safari",
   unknown: "未知来源",
 };
 

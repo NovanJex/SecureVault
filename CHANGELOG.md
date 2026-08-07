@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.3.0 (2026-08-08)
+
+### 🆕 Browser Password Import — Phase 2
+
+- New formats: 1Password CSV, LastPass CSV, Bitwarden CSV/JSON, Safari CSV
+- Auto-detect source with 6-level detection chain + Safari/1Password case distinction
+- LastPass grouping column auto-mapped to folders
+- Bitwarden folder/collectionIds auto-mapped to folders
+- Bitwarden JSON type mapping (login/note/card/identity)
+
+### 🔧 Fixes
+
+- LastPass CSV misidentified as Chrome (detection order fix)
+- Safari CSV misidentified as 1Password (header case check)
+- Import preview format label not showing for new formats
+
+### 🔨 Improvements
+
+- Sidebar spacing adjusted to eliminate scrollbar with 7+ folders
+- File picker now accepts .json format
+- Folder list max-height increased (192px → 208px)
+
+---
+
 ## v1.2.0 (2026-08-07)
 
 ### 🆕 Browser Password Import

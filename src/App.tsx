@@ -56,7 +56,7 @@ import { SecurityAudit } from "./components/SecurityAudit";
 import { PasswordGenerator } from "./components/PasswordGenerator";
 import { BrowserExtensionHub } from "./components/BrowserExtensionHub";
 import { BrowserImportPreview } from "./components/BrowserImportPreview";
-import { importBrowserCsv, checkDuplicates, type ImportResult } from "./utils/browserImport";
+import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/browserImport";
 
 export default function App() {
   // ===== 保险箱核心 Hook =====
@@ -655,7 +655,7 @@ export default function App() {
   const handleBrowserImport = async () => {
     try {
       const selected = await open({
-        filters: [{ name: 'CSV 密码文件', extensions: ['csv'] }],
+        filters: [{ name: '密码导入文件', extensions: ['csv', 'json'] }],
         multiple: false,
       });
       if (!selected) return;
@@ -674,7 +674,7 @@ export default function App() {
 
       let result: ImportResult;
       try {
-        result = importBrowserCsv(content);
+        result = importBrowserFile(content);
       } catch (e) {
         console.error("CSV 解析失败:", e);
         showToast(`❌ CSV 解析错误: ${String(e)}`);
@@ -749,6 +749,15 @@ export default function App() {
 
     if (toImport.length > 0) {
       setVaultItems(prev => [...toImport, ...prev]);
+      // 自动创建导入涉及的所有文件夹
+      const newFolders = browserImportResult.folderNames.filter(
+        fn => !folders.some(f => f.name === fn)
+      );
+      if (newFolders.length > 0) {
+        setFolders(prev => [...prev, ...newFolders.map(fn => ({
+          id: `folder-import-${fn.replace(/\s/g, "-")}`, name: fn, icon: "folder" as const
+        }))]);
+      }
       showToast(`✅ 已导入 ${toImport.length} 条浏览器密码记录`);
     }
 
@@ -875,7 +884,7 @@ export default function App() {
                     <div className="w-full md:w-60 bg-slate-50 border-r border-slate-200 shrink-0 flex flex-col overflow-hidden shadow-sm">
                       
                       {/* Scrollable Sidebar Content */}
-                      <div className="flex-1 overflow-y-auto p-4 flex flex-col space-y-5">
+                      <div className="flex-1 overflow-y-auto p-3 flex flex-col space-y-3.5">
                         
                         {/* Add Item Quick Button */}
                         <div className="flex space-x-2">
@@ -1038,7 +1047,7 @@ export default function App() {
                           {/* Folders List */}
                           <div>
                             <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5 px-2">自定义文件夹</p>
-                            <div className="space-y-0.5 max-h-48 overflow-y-auto overflow-x-hidden pr-1">
+                            <div className="space-y-0.5 max-h-52 overflow-y-auto overflow-x-hidden pr-1">
                               {folders.map((f) => {
                                 const isEditingFolder = editingFolderId === f.id;
                                 return (
@@ -1126,7 +1135,7 @@ export default function App() {
                       </div> {/* Closes Scrollable Sidebar Content */}
 
                       {/* STICKY FOOTER PANEL */}
-                      <div className="p-4 pt-2 space-y-2 shrink-0 bg-slate-50">
+                      <div className="p-3 pt-1.5 space-y-1.5 shrink-0 bg-slate-50">
                         <div 
                           onClick={() => { setSelectedFolder("audit"); setSelectedItemType("all"); setSelectedItemId(null); setIsCreating(false); setIsEditing(false); }}
                           className={`group border rounded-xl p-2.5 flex items-center justify-between cursor-pointer transition-all duration-200 shadow-sm hover:shadow-md ${
@@ -1454,7 +1463,7 @@ export default function App() {
                                   {isFormFolderDropdownOpen && (
                                     <>
                                       <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsFormFolderDropdownOpen(false)} />
-                                      <div className="absolute left-0 right-0 mt-1.5 max-h-48 overflow-y-auto bg-white border border-slate-100 rounded-lg shadow-xl py-1 z-50">
+                                      <div className="absolute left-0 right-0 mt-1.5 max-h-52 overflow-y-auto bg-white border border-slate-100 rounded-lg shadow-xl py-1 z-50">
                                         <button
                                           type="button"
                                           onClick={() => { setFormFolder("未分类"); setIsFormFolderDropdownOpen(false); }}
