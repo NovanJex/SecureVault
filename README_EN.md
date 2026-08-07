@@ -71,6 +71,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 - **Dual KDF** — Argon2id (default, recommended) or PBKDF2-SHA256
 - **Encrypted export** — AES-256-GCM backup with SHA-256 checksum
 - **Smart import** — merge or overwrite strategies, automatic integrity verification
+- **External password import** — Chrome/Edge/Firefox/Safari/1Password/LastPass/Bitwarden CSV or JSON files
 
 ### 🔍 Security Audit
 

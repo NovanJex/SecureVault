@@ -1786,14 +1786,14 @@ export default function App() {
                               {/* Password Management Tools */}
                               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm text-left">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                  {/* 左：导入浏览器密码 */}
+                                  {/* 左：导入外部密码 */}
                                   <div className="space-y-2.5">
                                     <div>
                                       <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
                                         <Globe className="w-3.5 h-3.5 text-indigo-500" />
-                                        <span>导入浏览器密码</span>
+                                        <span>导入外部密码</span>
                                       </h5>
-                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">支持 Chrome、Edge、Firefox 导出的 CSV 一键导入。</p>
+                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">支持 Chrome/Edge/Firefox/1Password/LastPass/Bitwarden/Safari 的 CSV 或 JSON 文件。</p>
                                     </div>
                                     <button
                                       type="button"
@@ -1801,7 +1801,7 @@ export default function App() {
                                       className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded-lg transition shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer font-sans"
                                     >
                                       <Globe className="w-3.5 h-3.5" />
-                                      <span>选择 CSV 文件</span>
+                                      <span>选择密码文件</span>
                                     </button>
                                   </div>
 

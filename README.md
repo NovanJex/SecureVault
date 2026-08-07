@@ -69,6 +69,7 @@
 - **双 KDF** — Argon2id（默认推荐）或 PBKDF2-SHA256
 - **加密导出** — AES-256-GCM 加密 + SHA-256 校验和
 - **智能导入** — 合并或覆盖策略，自动完整性验证
+- **外部密码导入** — 支持 Chrome/Edge/Firefox/Safari/1Password/LastPass/Bitwarden 的 CSV 或 JSON 文件
 
 ### 🔍 安全审计
 
