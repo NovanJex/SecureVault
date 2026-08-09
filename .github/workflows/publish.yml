@@ -99,22 +99,50 @@ jobs:
             echo "⚠️  $APP not found, skipping codesign"
           fi
 
-      - name: Upload Windows portable binary
+      - name: Rename & upload Windows artifacts
         if: matrix.platform == 'windows-latest'
         shell: bash
         run: |
-          BIN="src-tauri/target/release/secure-vault-desktop.exe"
-          VERSION="${{ github.ref_name }}"        # e.g. v1.3.1
-          VER="${VERSION#v}"                      # e.g. 1.3.1
+          BUNDLE="src-tauri/target/release/bundle"
+          VERSION="${{ github.ref_name }}"
+          VER="${VERSION#v}"
 
-          # 构建干净的目录结构: SecureVault/SecureVault_1.3.1_Windows.exe
+          # NSIS installer
+          cp "$BUNDLE/nsis/SecureVault_${VER}_x64-setup.exe" "SecureVault_${VERSION}_Windows_x64-setup.exe"
+          gh release upload "$VERSION" "SecureVault_${VERSION}_Windows_x64-setup.exe" --repo ${{ github.repository }} --clobber
+
+          # MSI installer
+          cp "$BUNDLE/msi/SecureVault_${VER}_x64_zh-CN.msi" "SecureVault_${VERSION}_Windows_x64_zh-CN.msi"
+          gh release upload "$VERSION" "SecureVault_${VERSION}_Windows_x64_zh-CN.msi" --repo ${{ github.repository }} --clobber
+
+          # Portable zip
+          BIN="src-tauri/target/release/secure-vault-desktop.exe"
           STAGING="SecureVault"
           mkdir -p "$STAGING"
-          cp "$BIN" "$STAGING/SecureVault_${VER}_Windows.exe"
+          cp "$BIN" "$STAGING/SecureVault_${VERSION}_Windows_Portable.exe"
+          7z a "SecureVault_${VERSION}_Windows_Portable.zip" "$STAGING"
+          gh release upload "$VERSION" "SecureVault_${VERSION}_Windows_Portable.zip" --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          ZIP="SecureVault_${VER}_Windows.zip"
-          7z a "$ZIP" "$STAGING"
+      - name: Rename & upload macOS artifact
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VER="${VERSION#v}"
+          cp "src-tauri/target/release/bundle/dmg/SecureVault_${VER}_aarch64.dmg" "SecureVault_${VERSION}_macOS_aarch64.dmg"
+          gh release upload "$VERSION" "SecureVault_${VERSION}_macOS_aarch64.dmg" --repo ${{ github.repository }} --clobber
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-          gh release upload "${{ github.ref_name }}" "$ZIP" --repo ${{ github.repository }}
+      - name: Rename & upload Linux artifact
+        if: matrix.platform == 'ubuntu-22.04'
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VER="${VERSION#v}"
+          cp "src-tauri/target/release/bundle/appimage/SecureVault_${VER}_amd64.AppImage" "SecureVault_${VERSION}_Linux_amd64.AppImage"
+          gh release upload "$VERSION" "SecureVault_${VERSION}_Linux_amd64.AppImage" --repo ${{ github.repository }} --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
