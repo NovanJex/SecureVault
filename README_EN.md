@@ -207,3 +207,5 @@ Issues and pull requests are welcome. For major changes, please open an issue fi
 ## ⭐ Star History
 
 If you find this project useful, please give it a star ⭐ to support it!
+
+[![Star History Chart](https://api.star-history.com/chart?repos=NovanJex/SecureVault&type=date&legend=top-left&sealed_token=j-LP3Za1NF8uKv185Fk0HBfPRc1PkHa9KUMjzBEP4Al0DVFhbdBeUH2NVxayGNNd6kfaJ2-lAWwOajpp6CKR7vSM65nCkHcZVdRZ8xxeSojCHc-qDr9YgIRcNS4rniOjXNp9jJlQiSgtqegMsX-s__iGMwSNxkaD7wJF0ySfbGL-sOxNMVjQaglHRGgd)](https://www.star-history.com/?repos=NovanJex%2FSecureVault&type=date&legend=top-left)
