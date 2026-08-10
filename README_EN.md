@@ -206,8 +206,14 @@ Issues and pull requests are welcome. For major changes, please open an issue fi
 
 ## ⭐ Star History
 
+If you find this project useful, please give it a star ⭐ to support it!
+
 <p align="center">
-  <a href="https://star-history.com/#NovanJex/SecureVault&Date">
-    <img src="https://api.star-history.com/svg?repos=NovanJex/SecureVault&type=Date" alt="Star History Chart" />
-  </a>
+  <a href="https://www.star-history.com/?repos=NovanJex%2FSecureVault&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=NovanJex/SecureVault&type=date&theme=dark&legend=top-left&sealed_token=JyV3UuxSJTkYTOe40bKLK1VB7gNW9mhnWwAA_g4PFFx7BrRPzIINoNFnGWCT49Kgt-0OXuAFzOG4icycnKrqxFNclpYfVMvlCjq6SRS8ldZcu92PVXCitbzX_QarwXpCY-c6NSP85mQfN6ZWHLXiVgn_k0HSFzLhoJ8gKTkJeBkgChowOomVQQwdETaM" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=NovanJex/SecureVault&type=date&legend=top-left&sealed_token=JyV3UuxSJTkYTOe40bKLK1VB7gNW9mhnWwAA_g4PFFx7BrRPzIINoNFnGWCT49Kgt-0OXuAFzOG4icycnKrqxFNclpYfVMvlCjq6SRS8ldZcu92PVXCitbzX_QarwXpCY-c6NSP85mQfN6ZWHLXiVgn_k0HSFzLhoJ8gKTkJeBkgChowOomVQQwdETaM" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=NovanJex/SecureVault&type=date&legend=top-left&sealed_token=JyV3UuxSJTkYTOe40bKLK1VB7gNW9mhnWwAA_g4PFFx7BrRPzIINoNFnGWCT49Kgt-0OXuAFzOG4icycnKrqxFNclpYfVMvlCjq6SRS8ldZcu92PVXCitbzX_QarwXpCY-c6NSP85mQfN6ZWHLXiVgn_k0HSFzLhoJ8gKTkJeBkgChowOomVQQwdETaM" />
+ </picture>
+</a>
 </p>
