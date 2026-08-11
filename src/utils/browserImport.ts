@@ -12,7 +12,7 @@ export type BrowserType =
   | "chrome" | "firefox"
   | "1password" | "lastpass"
   | "bitwarden-csv" | "bitwarden-json"
-  | "safari" | "unknown";
+  | "safari" | "kdbx" | "unknown";
 
 export interface ImportResult {
   items: VaultItem[];
@@ -117,6 +117,7 @@ const sourceLabel: Record<BrowserType, string> = {
   "bitwarden-csv": "Bitwarden",
   "bitwarden-json": "Bitwarden",
   safari: "Safari",
+  kdbx: "KeePass",
   unknown: "未知来源",
 };
 

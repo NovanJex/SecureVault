@@ -217,6 +217,170 @@ fn write_binary_file(path: String, data_b64: String) -> Result<(), String> {
         .map_err(|e| format!("写入二进制文件失败: {}", e))
 }
 
+// 10. 导出 KeePass KDBX 数据库文件（KDBX4 + Argon2id + AES-256-CBC + GZip）
+//     凭证数据由前端传入（已解密的 vault items JSON），KDBX 使用用户指定的独立密码
+#[tauri::command]
+fn export_kdbx(path: String, items_json: String, password: String) -> Result<(), String> {
+    use keepass::config::{DatabaseConfig, DatabaseVersion, KdfConfig};
+    use keepass::db::{Database, Entry, Group, Value};
+    use keepass::DatabaseKey;
+    use secstr::SecStr;
+
+    let data: serde_json::Value = serde_json::from_str(&items_json)
+        .map_err(|e| format!("凭证数据解析失败: {}", e))?;
+    let items = data.get("items").and_then(|v| v.as_array()).cloned().unwrap_or_default();
+
+    let mut config = DatabaseConfig::default();
+    config.version = DatabaseVersion::KDB4(1);
+    // Argon2id: 与 SecureVault 主加密栈同参数 (64 MiB / 4 轮 / 4 并行)
+    // version 类型来自 rust-argon2（keepass 内部依赖，lib 名同为 argon2，不可直接依赖），
+    // 通过匹配默认配置取得，避免同名 lib 冲突
+    let default_version = match DatabaseConfig::default().kdf_config {
+        KdfConfig::Argon2 { version, .. } | KdfConfig::Argon2id { version, .. } => version,
+        KdfConfig::Aes { .. } => unreachable!("默认 KDF 为 Argon2"),
+    };
+    config.kdf_config = KdfConfig::Argon2id {
+        iterations: 4,
+        memory: 65_536, // KiB = 64 MiB
+        parallelism: 4,
+        version: default_version,
+    };
+
+    let mut db = Database::new(config);
+    db.meta.database_name = Some("SecureVault 保险箱".to_string());
+
+    let get_str = |item: &serde_json::Value, key: &str| -> String {
+        item.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
+    };
+
+    // 收集文件夹（保持出现顺序）
+    let mut folders: Vec<String> = Vec::new();
+    for item in &items {
+        let f = get_str(item, "folder");
+        let folder = if f.is_empty() { "KeePass 导出".to_string() } else { f };
+        if !folders.contains(&folder) {
+            folders.push(folder);
+        }
+    }
+
+    for folder in folders {
+        let mut group = Group::new(&folder);
+        for item in &items {
+            let f = get_str(item, "folder");
+            let item_folder = if f.is_empty() { "KeePass 导出".to_string() } else { f };
+            if item_folder != folder { continue; }
+
+            let mut entry = Entry::new();
+            entry.fields.insert("Title".into(), Value::Unprotected(get_str(item, "title")));
+            entry.fields.insert("UserName".into(), Value::Unprotected(get_str(item, "username")));
+            // 密码必须使用 Protected 内层加密存储
+            entry.fields.insert("Password".into(), Value::Protected(SecStr::from(get_str(item, "password"))));
+            entry.fields.insert("URL".into(), Value::Unprotected(get_str(item, "url")));
+            entry.fields.insert("Notes".into(), Value::Unprotected(get_str(item, "notes")));
+
+            let item_type = get_str(item, "type");
+            if item_type == "card" {
+                entry.fields.insert("卡号".into(), Value::Unprotected(get_str(item, "cardNumber")));
+                entry.fields.insert("有效期".into(), Value::Unprotected(get_str(item, "cardExpiry")));
+                entry.fields.insert("CVV".into(), Value::Unprotected(get_str(item, "cardCvv")));
+            }
+            if item.get("isFavorite").and_then(|v| v.as_bool()).unwrap_or(false) {
+                entry.fields.insert("SecureVaultFavorite".into(), Value::Unprotected("1".into()));
+            }
+            group.add_child(entry);
+        }
+        db.root.add_child(group);
+    }
+
+    let key = DatabaseKey::new().with_password(&password);
+    let mut file = std::fs::File::create(&path)
+        .map_err(|e| format!("创建 KDBX 文件失败: {}", e))?;
+    db.save(&mut file, key)
+        .map_err(|e| format!("KDBX 保存失败: {}", e))?;
+
+    Ok(())
+}
+
+// 11. 导入 KeePass KDBX 数据库文件
+//     返回前端可解析的 JSON: { items: [...], folders: [...] }
+#[tauri::command]
+fn import_kdbx(path: String, password: String) -> Result<String, String> {
+    use keepass::db::{Database, Group, Value};
+    use keepass::DatabaseKey;
+    use std::collections::BTreeSet;
+
+    let key = DatabaseKey::new().with_password(&password);
+    let mut file = std::fs::File::open(&path)
+        .map_err(|e| format!("打开 KDBX 文件失败: {}", e))?;
+    let db = Database::open(&mut file, key)
+        .map_err(|e| format!("KDBX 解密失败（请检查密码是否正确）: {}", e))?;
+
+    let mut items: Vec<serde_json::Value> = Vec::new();
+    let mut folder_set: BTreeSet<String> = BTreeSet::new();
+
+    fn get_field(fields: &std::collections::HashMap<String, Value>, key: &str) -> String {
+        match fields.get(key) {
+            Some(Value::Unprotected(s)) => s.clone(),
+            Some(Value::Protected(b)) => String::from_utf8_lossy(b.unsecure()).into_owned(),
+            Some(Value::Bytes(b)) => String::from_utf8_lossy(b).into_owned(),
+            None => String::new(),
+        }
+    }
+
+    fn walk(group: &Group, prefix: &str, items: &mut Vec<serde_json::Value>, folder_set: &mut BTreeSet<String>) {
+        // 跳过根组 "Root"，其直接条目归入 "KeePass 导入"
+        let is_root = prefix.is_empty() && group.name == "Root";
+        let path = if is_root {
+            String::new()
+        } else if prefix.is_empty() {
+            group.name.clone()
+        } else {
+            format!("{}/{}", prefix, group.name)
+        };
+
+        for entry in group.entries() {
+            let fields = &entry.fields;
+            // 收集自定义字段（排除标准字段），用于前端类型推断
+            let custom: serde_json::Map<String, serde_json::Value> = fields.iter()
+                .filter(|(k, _)| !["Title", "UserName", "Password", "URL", "Notes", "SecureVaultFavorite"].contains(&k.as_str()))
+                .map(|(k, v)| {
+                    let s = match v {
+                        Value::Unprotected(s) => s.clone(),
+                        Value::Protected(b) => String::from_utf8_lossy(b.unsecure()).into_owned(),
+                        Value::Bytes(b) => String::from_utf8_lossy(b).into_owned(),
+                    };
+                    (k.clone(), serde_json::Value::String(s))
+                })
+                .collect();
+
+            let folder = if path.is_empty() { "KeePass 导入".to_string() } else { path.clone() };
+            folder_set.insert(folder.clone());
+
+            items.push(serde_json::json!({
+                "title": get_field(fields, "Title"),
+                "username": get_field(fields, "UserName"),
+                "password": get_field(fields, "Password"),
+                "url": get_field(fields, "URL"),
+                "notes": get_field(fields, "Notes"),
+                "folder": folder,
+                "favorite": get_field(fields, "SecureVaultFavorite") == "1",
+                "custom": serde_json::Value::Object(custom),
+            }));
+        }
+
+        for sub in group.groups() {
+            walk(sub, &path, items, folder_set);
+        }
+    }
+
+    walk(&db.root, "", &mut items, &mut folder_set);
+
+    Ok(serde_json::json!({
+        "items": items,
+        "folders": folder_set.iter().cloned().collect::<Vec<_>>(),
+    }).to_string())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -236,7 +400,9 @@ fn main() {
             write_export_file,
             read_export_file,
             compute_sha256,
-            write_binary_file
+            write_binary_file,
+            export_kdbx,
+            import_kdbx
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

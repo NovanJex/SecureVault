@@ -4,6 +4,28 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.4.0 (2026-08-12)
+
+### 🆕 KeePass KDBX 互操作
+
+- **导出 KeePass (.kdbx)** — 一键将保险箱导出为 KeePass 标准数据库（KDBX4 + Argon2id + AES-256-CBC + GZip），可用 KeePass / KeePassXC 等任意 KeePass 生态客户端打开
+- **导入 KeePass (.kdbx)** — 支持从 KeePass / KeePassXC 导出的 KDBX 文件迁移凭证，输入文件密码后自动解密并预览
+- 文件夹自动映射为 KeePass 分组（保留层级）
+- 密码使用内层流加密（Protected 字段）存储，与 KeePass 原生行为一致
+- 卡券条目自动映射卡号/有效期/CVV 自定义字段
+- 星标收藏映射为 `SecureVaultFavorite` 自定义字段
+- 导入类型智能推断：卡号特征 / 卡字段 → 虚拟卡券，无凭据 → 安全备忘
+
+### ✨ Improvements
+
+- 窗口启动时自动居中（`center: true`），不再由系统级联放置
+
+### 🔧 Fixes
+
+- 修复 rust-argon2 与 argon2 同名 lib 冲突（E0464），通过派生默认配置版本规避
+
+---
+
 ## v1.3.1 (2026-08-08)
 
 ### 🔧 Fixes

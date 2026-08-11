@@ -30,6 +30,7 @@ const browserLabel: Record<string, string> = {
   "bitwarden-csv": "Bitwarden (CSV)",
   "bitwarden-json": "Bitwarden (JSON)",
   safari: "Safari",
+  kdbx: "KeePass (.kdbx)",
   unknown: "未知来源",
 };
 

@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault 🔐</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.3.1-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.4.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -72,6 +72,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 - **Encrypted export** — AES-256-GCM backup with SHA-256 checksum
 - **Smart import** — merge or overwrite strategies, automatic integrity verification
 - **External password import** — Chrome/Edge/Firefox/Safari/1Password/LastPass/Bitwarden CSV or JSON files
+- **KeePass interop** — one-click KDBX export/import, seamless migration with KeePass / KeePassXC ecosystem
 
 ### 🔍 Security Audit
 
@@ -181,7 +182,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
-| `v1.3.1` | 2026-08-08 | Import labels update, README additions |
+| `v1.4.0` | 2026-08-12 | KeePass KDBX import/export, centered window |
 | `v1.3.0` | 2026-08-08 | Browser import phase 2 (1Password/LastPass/Bitwarden/Safari), sidebar polish |
 | `v1.2.0` | 2026-08-07 | Browser password import, change master password, settings restructure |
 | `v1.1.1` | 2026-08-04 | macOS codesign fix, README storage path correction |

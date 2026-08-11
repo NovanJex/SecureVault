@@ -45,3 +45,17 @@ export const loadSecureVaultFile = (): Promise<string> => {
 export const computeSha256 = (content: string): Promise<string> => {
   return invoke<string>('compute_sha256', { content });
 };
+
+// ============================================================
+// KeePass KDBX 互操作命令
+// ============================================================
+
+/** 导出 KeePass KDBX 数据库（KDBX4 + Argon2id + AES-256-CBC），password 为 KDBX 独立密码 */
+export const exportKdbx = (path: string, itemsJson: string, password: string): Promise<void> => {
+  return invoke<void>('export_kdbx', { path, itemsJson, password });
+};
+
+/** 导入 KeePass KDBX 数据库，返回 JSON 字符串 { items: KdbxRawItem[], folders: string[] } */
+export const importKdbx = (path: string, password: string): Promise<string> => {
+  return invoke<string>('import_kdbx', { path, password });
+};

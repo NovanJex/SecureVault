@@ -33,7 +33,9 @@ import {
   Settings,
   Upload,
   Chrome,
-  Globe
+  Globe,
+  FileKey,
+  DatabaseBackup
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
@@ -41,7 +43,7 @@ import { save, open } from '@tauri-apps/plugin-dialog';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { ItemType, VaultItem, VaultFolder } from "./types";
 import { secureRandomIndex } from "./utils/vaultStorage";
-import { decryptVault, deriveMasterKey } from "./utils/tauriBridge";
+import { decryptVault, deriveMasterKey, exportKdbx, importKdbx } from "./utils/tauriBridge";
 import { invoke } from '@tauri-apps/api/core';
 import { useVault } from "./hooks/useVault";
 import { usePasswordGenerator } from "./hooks/usePasswordGenerator";
@@ -57,6 +59,7 @@ import { PasswordGenerator } from "./components/PasswordGenerator";
 import { BrowserExtensionHub } from "./components/BrowserExtensionHub";
 import { BrowserImportPreview } from "./components/BrowserImportPreview";
 import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/browserImport";
+import { convertKdbxPayload } from "./utils/kdbxImport";
 
 export default function App() {
   // ===== 保险箱核心 Hook =====
@@ -162,6 +165,20 @@ export default function App() {
   const [browserImportResult, setBrowserImportResult] = useState<ImportResult | null>(null);
   const [browserImportDups, setBrowserImportDups] = useState(0);
   const [browserImportStrategy, setBrowserImportStrategy] = useState<"merge" | "skip-duplicates">("merge");
+
+  // KeePass KDBX 导入（选择文件后需输入 KDBX 密码）
+  const [showKdbxImportModal, setShowKdbxImportModal] = useState(false);
+  const [pendingKdbxPath, setPendingKdbxPath] = useState<string>("");
+  const [kdbxImportPassword, setKdbxImportPassword] = useState("");
+  const [kdbxImportError, setKdbxImportError] = useState("");
+  const [isKdbxImporting, setIsKdbxImporting] = useState(false);
+
+  // KeePass KDBX 导出（需输入 KDBX 独立密码）
+  const [showKdbxExportModal, setShowKdbxExportModal] = useState(false);
+  const [kdbxExportPassword, setKdbxExportPassword] = useState("");
+  const [kdbxExportConfirm, setKdbxExportConfirm] = useState("");
+  const [kdbxExportError, setKdbxExportError] = useState("");
+  const [isKdbxExporting, setIsKdbxExporting] = useState(false);
 
   // 修改主密码
   const [showChangePassword, setShowChangePassword] = useState(false);
@@ -695,6 +712,114 @@ export default function App() {
     } catch (err) {
       console.error("浏览器导入失败:", err);
       showToast(`❌ 导入失败: ${String(err)}`);
+    }
+  };
+
+  // ===== KeePass KDBX 导入 =====
+  const handleKdbxImport = async () => {
+    try {
+      const selected = await open({
+        filters: [{ name: 'KeePass 数据库', extensions: ['kdbx'] }],
+        multiple: false,
+      });
+      if (!selected) return;
+
+      const filePath = Array.isArray(selected) ? selected[0] : selected as string;
+      if (!filePath) return;
+
+      setPendingKdbxPath(filePath);
+      setKdbxImportPassword("");
+      setKdbxImportError("");
+      setShowKdbxImportModal(true);
+    } catch (err) {
+      console.error("KDBX 导入失败:", err);
+      showToast(`❌ 导入失败: ${String(err)}`);
+    }
+  };
+
+  const handleKdbxImportPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kdbxImportPassword) {
+      setKdbxImportError("请输入该 KDBX 文件的密码");
+      return;
+    }
+    if (!pendingKdbxPath) return;
+
+    setIsKdbxImporting(true);
+    setKdbxImportError("");
+    try {
+      const raw = await importKdbx(pendingKdbxPath, kdbxImportPassword);
+      const payload = JSON.parse(raw);
+      if (!payload.items || payload.items.length === 0) {
+        setKdbxImportError("该 KDBX 文件中没有有效的密码记录");
+        setIsKdbxImporting(false);
+        return;
+      }
+
+      // 复用浏览器导入预览流程
+      const result = convertKdbxPayload(payload);
+      const dupCheck = checkDuplicates(result.items, vaultItems);
+      setBrowserImportDups(dupCheck.duplicates);
+      setBrowserImportResult({ ...result, items: dupCheck.items });
+      setShowBrowserImport(true);
+
+      // 关闭密码输入弹窗
+      setShowKdbxImportModal(false);
+      setPendingKdbxPath("");
+      setKdbxImportPassword("");
+    } catch (err) {
+      console.error("KDBX 解密失败:", err);
+      setKdbxImportError(`❌ ${String(err)}`);
+    } finally {
+      setIsKdbxImporting(false);
+    }
+  };
+
+  // ===== KeePass KDBX 导出 =====
+  const handleKdbxExport = () => {
+    if (!masterKey || isLocked) {
+      showToast("⚠️ 保险箱未解锁，无法导出");
+      return;
+    }
+    setKdbxExportPassword("");
+    setKdbxExportConfirm("");
+    setKdbxExportError("");
+    setShowKdbxExportModal(true);
+  };
+
+  const handleKdbxExportConfirm = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!kdbxExportPassword || kdbxExportPassword.length < 4) {
+      setKdbxExportError("KDBX 密码至少需要 4 位");
+      return;
+    }
+    if (kdbxExportPassword !== kdbxExportConfirm) {
+      setKdbxExportError("两次输入的密码不一致");
+      return;
+    }
+
+    setIsKdbxExporting(true);
+    setKdbxExportError("");
+    try {
+      const filePath = await save({
+        filters: [{ name: 'KeePass 数据库', extensions: ['kdbx'] }],
+        defaultPath: `SecureVault_${new Date().toISOString().slice(0, 10)}.kdbx`,
+      });
+      if (!filePath) {
+        setIsKdbxExporting(false);
+        return;
+      }
+
+      await exportKdbx(filePath, JSON.stringify({ items: vaultItems }), kdbxExportPassword);
+      showToast("✅ 已导出 KeePass KDBX 数据库！");
+      setShowKdbxExportModal(false);
+      setKdbxExportPassword("");
+      setKdbxExportConfirm("");
+    } catch (err) {
+      console.error("KDBX 导出失败:", err);
+      setKdbxExportError(`❌ 导出失败: ${String(err)}`);
+    } finally {
+      setIsKdbxExporting(false);
     }
   };
 
@@ -1737,7 +1862,7 @@ export default function App() {
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                                         <span>从物理备份恢复 / 合并导入</span>
                                       </h5>
-                                      
+
                                       {/* Strategy Select */}
                                       <div className="flex flex-col sm:flex-row bg-slate-100/80 p-1 rounded-xl border border-slate-200/50 gap-1 sm:gap-0">
                                         <button
@@ -1776,6 +1901,52 @@ export default function App() {
                                           <Upload className="w-3.5 h-3.5 text-slate-400 group-hover:scale-110 transition-transform shrink-0" />
                                           <span className="text-[10px] font-bold text-slate-600">点击选择备份 JSON 文件</span>
                                         </div>
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* KDBX Export Section */}
+                                  <div className="flex flex-col justify-between h-full">
+                                    <div className="space-y-4">
+                                      <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
+                                        <FileKey className="w-3.5 h-3.5 text-amber-600" />
+                                        <span>导出 KeePass (.kdbx)</span>
+                                      </h5>
+                                      <p className="text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200/50">
+                                        📤 导出为 KeePass 标准数据库格式，可使用 KeePass / KeePassXC 等任何 KeePass 生态客户端打开，方便随时迁移。
+                                      </p>
+                                    </div>
+                                    <div className="pt-4">
+                                      <button
+                                        type="button"
+                                        onClick={handleKdbxExport}
+                                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center space-x-2 cursor-pointer font-sans"
+                                      >
+                                        <FileKey className="w-4 h-4" />
+                                        <span>导出 KeePass 数据库</span>
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  {/* KDBX Import Section */}
+                                  <div className="flex flex-col justify-between h-full">
+                                    <div className="space-y-4">
+                                      <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
+                                        <DatabaseBackup className="w-3.5 h-3.5 text-emerald-600" />
+                                        <span>导入 KeePass (.kdbx)</span>
+                                      </h5>
+                                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                                        📥 支持从 KeePass / KeePassXC 导出的 KDBX 文件迁移凭证，需输入该文件的密码。
+                                      </p>
+                                    </div>
+                                    <div className="pt-4">
+                                      <button
+                                        type="button"
+                                        onClick={handleKdbxImport}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center space-x-2 cursor-pointer font-sans"
+                                      >
+                                        <DatabaseBackup className="w-4 h-4" />
+                                        <span>选择 KDBX 文件导入</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2105,6 +2276,169 @@ export default function App() {
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
                 >
                   确认新建
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* KDBX 导入密码输入模态框 */}
+      {showKdbxImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-sm w-full shadow-2xl relative font-sans">
+            <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center space-x-2">
+              <DatabaseBackup className="w-4 h-4 text-emerald-600" />
+              <span>导入 KeePass 数据库</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 mb-4">
+              请输入该 <b>.kdbx</b> 文件的密码进行解密（与 SecureVault 主密码无关）。
+            </p>
+
+            <form onSubmit={handleKdbxImportPasswordSubmit} noValidate className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">KDBX 文件密码</label>
+                <input
+                  type="password"
+                  placeholder="输入 KDBX 文件密码"
+                  value={kdbxImportPassword}
+                  onChange={(e) => {
+                    setKdbxImportPassword(e.target.value);
+                    if (kdbxImportError) setKdbxImportError("");
+                  }}
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-semibold transition-all"
+                />
+              </div>
+
+              {kdbxImportError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-rose-600 text-[10px] font-medium flex items-center space-x-1.5"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span className="leading-none">{kdbxImportError}</span>
+                </motion.div>
+              )}
+
+              <div className="flex space-x-2.5 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowKdbxImportModal(false);
+                    setPendingKdbxPath("");
+                    setKdbxImportPassword("");
+                    setKdbxImportError("");
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={isKdbxImporting}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {isKdbxImporting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>解密中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <DatabaseBackup className="w-3.5 h-3.5" />
+                      <span>解密并预览</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* KDBX 导出密码输入模态框 */}
+      {showKdbxExportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
+          <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-sm w-full shadow-2xl relative font-sans">
+            <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center space-x-2">
+              <FileKey className="w-4 h-4 text-amber-600" />
+              <span>导出 KeePass 数据库</span>
+            </h3>
+            <p className="text-[11px] text-slate-500 mb-4">
+              设置该 KDBX 文件的独立密码，<b>请务必牢记</b>——KeePass 生态客户端（KeePass / KeePassXC）打开此文件时需要它。
+            </p>
+
+            <form onSubmit={handleKdbxExportConfirm} noValidate className="space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">KDBX 密码</label>
+                <input
+                  type="password"
+                  placeholder="至少 4 位"
+                  value={kdbxExportPassword}
+                  onChange={(e) => {
+                    setKdbxExportPassword(e.target.value);
+                    if (kdbxExportError) setKdbxExportError("");
+                  }}
+                  autoFocus
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-semibold transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">确认密码</label>
+                <input
+                  type="password"
+                  placeholder="再次输入 KDBX 密码"
+                  value={kdbxExportConfirm}
+                  onChange={(e) => {
+                    setKdbxExportConfirm(e.target.value);
+                    if (kdbxExportError) setKdbxExportError("");
+                  }}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-amber-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-semibold transition-all"
+                />
+              </div>
+
+              {kdbxExportError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-rose-50 border border-rose-100 rounded-lg px-3 py-2 text-rose-600 text-[10px] font-medium flex items-center space-x-1.5"
+                >
+                  <ShieldAlert className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  <span className="leading-none">{kdbxExportError}</span>
+                </motion.div>
+              )}
+
+              <div className="flex space-x-2.5 justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowKdbxExportModal(false);
+                    setKdbxExportPassword("");
+                    setKdbxExportConfirm("");
+                    setKdbxExportError("");
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  disabled={isKdbxExporting}
+                  className="bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm flex items-center space-x-1.5 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  {isKdbxExporting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>导出中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <FileKey className="w-3.5 h-3.5" />
+                      <span>选择位置并导出</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>

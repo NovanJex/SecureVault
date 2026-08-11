@@ -5,7 +5,7 @@
 <h1 align="center">🔐 SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.3.1-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.4.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -70,6 +70,7 @@
 - **加密导出** — AES-256-GCM 加密 + SHA-256 校验和
 - **智能导入** — 合并或覆盖策略，自动完整性验证
 - **外部密码导入** — 支持 Chrome/Edge/Firefox/Safari/1Password/LastPass/Bitwarden 的 CSV 或 JSON 文件
+- **KeePass 互操作** — 一键导出/导入 KDBX 标准数据库，与 KeePass / KeePassXC 生态无缝迁移
 
 ### 🔍 安全审计
 
@@ -179,7 +180,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
-| `v1.3.1` | 2026-08-08 | 导入区文案更新、README 补充 |
+| `v1.4.0` | 2026-08-12 | KeePass KDBX 导入导出、窗口居中 |
 | `v1.3.0` | 2026-08-08 | 浏览器密码导入二期（1Password/LastPass/Bitwarden/Safari）、侧边栏优化 |
 | `v1.2.0` | 2026-08-07 | 浏览器密码导入、修改主密码、设置页重组、GBK 编码修复 |
 | `v1.1.1` | 2026-08-04 | macOS 签名修复、README 存储路径更正 |
