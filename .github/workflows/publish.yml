@@ -126,6 +126,10 @@ jobs:
           cp "$BIN" "$STAGING/SecureVault_${VERSION}_Windows_Portable.exe"
           7z a "SecureVault_${VERSION}_Windows_Portable.zip" "$STAGING"
           gh release upload "$VERSION" "SecureVault_${VERSION}_Windows_Portable.zip" --repo ${{ github.repository }}
+
+          # 删除原始命名产物（保留重命名版）
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_x64-setup.exe" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 exe 不存在或已删除"
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_x64_zh-CN.msi" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 msi 不存在或已删除"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -153,6 +157,9 @@ jobs:
           fi
           cp "$DMG" "SecureVault_${VERSION}_macOS_aarch64.dmg"
           gh release upload "$VERSION" "SecureVault_${VERSION}_macOS_aarch64.dmg" --repo ${{ github.repository }} --clobber
+
+          # 删除原始命名 dmg（保留重命名版；app.tar.gz 无重命名版，保留）
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_aarch64.dmg" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 dmg 不存在或已删除"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -164,5 +171,8 @@ jobs:
           VER="${VERSION#v}"
           cp "src-tauri/target/release/bundle/appimage/SecureVault_${VER}_amd64.AppImage" "SecureVault_${VERSION}_Linux_amd64.AppImage"
           gh release upload "$VERSION" "SecureVault_${VERSION}_Linux_amd64.AppImage" --repo ${{ github.repository }} --clobber
+
+          # 删除原始命名 AppImage（保留重命名版；deb/rpm 无重命名版，保留）
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_amd64.AppImage" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 AppImage 不存在或已删除"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
