@@ -183,6 +183,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 | Version | Date | Notes |
 | --- | --- | --- |
 | `v1.4.0` | 2026-08-12 | KeePass KDBX import/export, centered window |
+| `v1.3.1` | 2026-08-08 | Import labels update, README additions |
 | `v1.3.0` | 2026-08-08 | Browser import phase 2 (1Password/LastPass/Bitwarden/Safari), sidebar polish |
 | `v1.2.0` | 2026-08-07 | Browser password import, change master password, settings restructure |
 | `v1.1.1` | 2026-08-04 | macOS codesign fix, README storage path correction |
