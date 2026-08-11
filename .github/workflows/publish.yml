@@ -91,12 +91,16 @@ jobs:
       - name: Ad-hoc codesign macOS app
         if: matrix.platform == 'macos-latest'
         run: |
-          APP="src-tauri/target/release/bundle/dmg/SecureVault.app"
-          if [ -d "$APP" ]; then
+          # Tauri v2: app bundle 位于 bundle/macos/，且 --target 时产物在 triple 子目录
+          APP=""
+          for p in "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/SecureVault.app" "src-tauri/target/release/bundle/macos/SecureVault.app"; do
+            if [ -d "$p" ]; then APP="$p"; break; fi
+          done
+          if [ -n "$APP" ]; then
             codesign --force --deep --sign - "$APP"
             echo "✅ Ad-hoc signed $APP"
           else
-            echo "⚠️  $APP not found, skipping codesign"
+            echo "⚠️  SecureVault.app not found, skipping codesign"
           fi
 
       - name: Rename & upload Windows artifacts
@@ -131,7 +135,23 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           VER="${VERSION#v}"
-          cp "src-tauri/target/release/bundle/dmg/SecureVault_${VER}_aarch64.dmg" "SecureVault_${VERSION}_macOS_aarch64.dmg"
+          # --target 时产物在 target/<triple>/release/bundle，兼容两种目录
+          DMG_DIR=""
+          for d in "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg" "src-tauri/target/release/bundle/dmg"; do
+            if [ -d "$d" ]; then DMG_DIR="$d"; break; fi
+          done
+          if [ -z "$DMG_DIR" ]; then
+            echo "❌ dmg bundle not found, searching:"
+            find src-tauri/target -name "*.dmg" 2>/dev/null | head -5
+            exit 1
+          fi
+          DMG=$(find "$DMG_DIR" -maxdepth 1 -name "SecureVault_*.dmg" | head -1)
+          if [ -z "$DMG" ]; then
+            echo "❌ SecureVault dmg not found in $DMG_DIR:"
+            ls -la "$DMG_DIR"
+            exit 1
+          fi
+          cp "$DMG" "SecureVault_${VERSION}_macOS_aarch64.dmg"
           gh release upload "$VERSION" "SecureVault_${VERSION}_macOS_aarch64.dmg" --repo ${{ github.repository }} --clobber
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
