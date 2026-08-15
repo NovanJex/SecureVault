@@ -2,7 +2,7 @@
   <img src="src-tauri/icons/icon.png" alt="SecureVault" width="128" height="128" />
 </p>
 
-<h1 align="center">SecureVault 🔐</h1>
+<h1 align="center">SecureVault</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.4.0-blue.svg" alt="version" />
