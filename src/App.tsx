@@ -1144,18 +1144,14 @@ export default function App() {
                                   <button
                                     key={t.id}
                                     onClick={() => { setSelectedItemType(t.id as any); setSelectedFolder("all"); setSelectedItemId(null); setIsCreating(false); setIsEditing(false); }}
-                                    className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all duration-150 border border-transparent cursor-pointer ${
+                                    className={`w-full text-left px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between transition-colors duration-150 border border-transparent cursor-pointer ${
                                       isSelected
                                         ? `${t.bgClass} ${t.textClass} shadow-sm`
                                         : "text-slate-600 hover:bg-slate-100"
                                     }`}
                                   >
-                                    <span className="flex items-center space-x-2.5">
-                                      <div className={`p-1 rounded-md transition-colors ${
-                                        isSelected ? t.iconBg : "bg-slate-100 text-slate-500 group-hover:bg-slate-200"
-                                      }`}>
-                                        <IconComp className="w-3.5 h-3.5" />
-                                      </div>
+                                    <span className="flex items-center space-x-2">
+                                      <IconComp className={`w-3.5 h-3.5 ${isSelected ? t.textClass : "text-slate-500"}`} />
                                       <span>{t.label}</span>
                                     </span>
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-colors ${

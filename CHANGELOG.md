@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.4.1 (2026-08-14)
+
+### 🔨 Improvements
+
+- Sidebar「按模板过滤」spacing aligned with「常用视角」and「自定义文件夹」(uniform padding, direct icon display)
+
+### 🔧 Fixes
+
+- CI: macOS artifact path for `--target` build (triple subdirectory detection), missing GH_TOKEN, codesign path
+- CI: remove duplicate raw release assets, keep renamed versions only (deb/rpm/app.tar.gz preserved)
+- README: restore accidentally removed v1.3.1 row in version history
+
+---
+
 ## v1.4.0 (2026-08-12)
 
 ### 🆕 KeePass KDBX 互操作

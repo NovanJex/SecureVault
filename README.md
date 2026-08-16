@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.4.1-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -180,6 +180,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.4.1` | 2026-08-14 | 侧边栏视觉对齐、CI 发布修复 |
 | `v1.4.0` | 2026-08-12 | KeePass KDBX 导入导出、窗口居中 |
 | `v1.3.1` | 2026-08-08 | 导入区文案更新、README 补充 |
 | `v1.3.0` | 2026-08-08 | 浏览器密码导入二期（1Password/LastPass/Bitwarden/Safari）、侧边栏优化 |

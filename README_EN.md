@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.4.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.4.1-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -182,6 +182,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.4.1` | 2026-08-14 | Sidebar alignment, CI publish fixes |
 | `v1.4.0` | 2026-08-12 | KeePass KDBX import/export, centered window |
 | `v1.3.1` | 2026-08-08 | Import labels update, README additions |
 | `v1.3.0` | 2026-08-08 | Browser import phase 2 (1Password/LastPass/Bitwarden/Safari), sidebar polish |
