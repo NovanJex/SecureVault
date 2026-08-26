@@ -10,6 +10,7 @@ export interface SecurityAuditProps {
   weakCount: number;
   reusedCount: number;
   compromisedCount: number;
+  expiredCount: number;
   ignoredCount: number;
   passMap: Record<string, number>;
   items: Array<{
@@ -33,7 +34,7 @@ function calcScore(weak: number, reused: number, compromised: number): number {
 
 export const SecurityAudit: React.FC<SecurityAuditProps> = ({
   isAuditScanning, hasAuditScanned,
-  totalCount, weakCount, reusedCount, compromisedCount, ignoredCount,
+  totalCount, weakCount, reusedCount, compromisedCount, expiredCount, ignoredCount,
   passMap, items,
   onStartAudit, onFixItem, onToggleIgnore, onCopyPassword,
 }) => {
@@ -121,10 +122,11 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
                 </div>
                 <div className="md:col-span-2 space-y-4">
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">全库诊断摘要统计</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <StatBox label="本地总资产条目" value={`${totalCount} 个`} />
                     <StatBox label="弱密码条目" value={`${weakCount} 个`} color="rose" />
                     <StatBox label="复用漏洞条目" value={`${reusedCount} 个`} color="amber" />
+                    <StatBox label="到期/过期条目" value={`${expiredCount} 个`} color={expiredCount > 0 ? "amber" : undefined} />
                   </div>
                   <p className="text-[10px] text-slate-500 leading-relaxed">※ 本报告根据本地沙盒密码交叉解算，无任何数据上传。</p>
                 </div>

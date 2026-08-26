@@ -217,7 +217,23 @@ fn write_binary_file(path: String, data_b64: String) -> Result<(), String> {
         .map_err(|e| format!("写入二进制文件失败: {}", e))
 }
 
-// 10. 导出 KeePass KDBX 数据库文件（KDBX4 + Argon2id + AES-256-CBC + GZip）
+// 10. 生成 TOTP 两步验证码（RFC 6238 标准，Base32 密钥，30 秒周期 6 位码）
+#[tauri::command]
+fn generate_totp(secret: String) -> Result<String, String> {
+    use totp_rs::{Algorithm, Secret, TOTP};
+
+    let secret = Secret::Encoded(secret);
+    let bytes = secret.to_bytes()
+        .map_err(|e| format!("TOTP 密钥无效（应为 Base32 编码）: {}", e))?;
+    let totp = TOTP::new(Algorithm::SHA1, 6, 0, 30, bytes)
+        .map_err(|e| format!("TOTP 密钥无效: {}", e))?;
+    let code = totp.generate_current().map_err(|e| e.to_string())?;
+    let remaining = totp.ttl().unwrap_or(0);
+
+    Ok(serde_json::json!({ "code": code, "remaining": remaining }).to_string())
+}
+
+// 11. 导出 KeePass KDBX 数据库文件（KDBX4 + Argon2id + AES-256-CBC + GZip）
 //     凭证数据由前端传入（已解密的 vault items JSON），KDBX 使用用户指定的独立密码
 #[tauri::command]
 fn export_kdbx(path: String, items_json: String, password: String) -> Result<(), String> {
@@ -286,6 +302,32 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
             }
             if item.get("isFavorite").and_then(|v| v.as_bool()).unwrap_or(false) {
                 entry.fields.insert("SecureVaultFavorite".into(), Value::Unprotected("1".into()));
+            }
+            // TOTP 密钥 → KeePass 生态标准 otp 字段（otpauth:// 格式）
+            let otp = get_str(item, "otpSecret");
+            if !otp.is_empty() {
+                let otp_url = format!(
+                    "otpauth://totp/{}?secret={}&issuer=SecureVault",
+                    get_str(item, "title"),
+                    otp
+                );
+                entry.fields.insert("otp".into(), Value::Unprotected(otp_url));
+            }
+            // 到期日期 → KeePass 标准 ExpiryTime
+            let expires = get_str(item, "expiresAt");
+            if !expires.is_empty() {
+                if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(&format!("{}T00:00:00", expires), "%Y-%m-%dT%H:%M:%S") {
+                    entry.times.expires = true;
+                    entry.times.set_expiry(dt);
+                }
+            }
+            // 自定义字段写回 KDBX custom fields（跳过已映射的标准字段）
+            if let Some(custom) = item.get("customFields").and_then(|v| v.as_object()) {
+                for (k, v) in custom {
+                    if let Some(s) = v.as_str() {
+                        entry.fields.insert(k.clone(), Value::Unprotected(s.to_string()));
+                    }
+                }
             }
             group.add_child(entry);
         }
@@ -356,6 +398,15 @@ fn import_kdbx(path: String, password: String) -> Result<String, String> {
             let folder = if path.is_empty() { "KeePass 导入".to_string() } else { path.clone() };
             folder_set.insert(folder.clone());
 
+            // 到期日期（KeePass 标准 ExpiryTime）
+            let expires_at = if entry.times.expires {
+                entry.times.get_expiry()
+                    .map(|dt| dt.format("%Y-%m-%d").to_string())
+                    .unwrap_or_default()
+            } else {
+                String::new()
+            };
+
             items.push(serde_json::json!({
                 "title": get_field(fields, "Title"),
                 "username": get_field(fields, "UserName"),
@@ -364,6 +415,7 @@ fn import_kdbx(path: String, password: String) -> Result<String, String> {
                 "notes": get_field(fields, "Notes"),
                 "folder": folder,
                 "favorite": get_field(fields, "SecureVaultFavorite") == "1",
+                "expiresAt": expires_at,
                 "custom": serde_json::Value::Object(custom),
             }));
         }
@@ -401,6 +453,7 @@ fn main() {
             read_export_file,
             compute_sha256,
             write_binary_file,
+            generate_totp,
             export_kdbx,
             import_kdbx
         ])

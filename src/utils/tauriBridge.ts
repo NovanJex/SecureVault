@@ -59,3 +59,17 @@ export const exportKdbx = (path: string, itemsJson: string, password: string): P
 export const importKdbx = (path: string, password: string): Promise<string> => {
   return invoke<string>('import_kdbx', { path, password });
 };
+
+// ============================================================
+// TOTP 两步验证码
+// ============================================================
+
+export interface TotpResult {
+  code: string;
+  remaining: number; // 当前周期剩余秒数
+}
+
+/** 生成 TOTP 验证码（RFC 6238，Base32 密钥，30 秒周期） */
+export const generateTotp = (secret: string): Promise<TotpResult> => {
+  return invoke<TotpResult>('generate_totp', { secret });
+};

@@ -58,6 +58,7 @@ import { SecurityAudit } from "./components/SecurityAudit";
 import { PasswordGenerator } from "./components/PasswordGenerator";
 import { BrowserExtensionHub } from "./components/BrowserExtensionHub";
 import { BrowserImportPreview } from "./components/BrowserImportPreview";
+import { DatePicker } from "./components/DatePicker";
 import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/browserImport";
 import { convertKdbxPayload } from "./utils/kdbxImport";
 
@@ -123,6 +124,9 @@ export default function App() {
   const [formIdentityAddress, setFormIdentityAddress] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [showFormPassword, setShowFormPassword] = useState(false);
+  const [formCustomFields, setFormCustomFields] = useState<Array<{ key: string; value: string }>>([]);
+  const [formOtpSecret, setFormOtpSecret] = useState("");
+  const [formExpiresAt, setFormExpiresAt] = useState("");
 
   // 密码明文/暗文显示映射
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
@@ -424,6 +428,9 @@ export default function App() {
     setFormIdentityPhone(item.identityPhone || "");
     setFormIdentityAddress(item.identityAddress || "");
     setFormNotes(item.notes || "");
+    setFormCustomFields(Object.entries(item.customFields || {}).map(([key, value]) => ({ key, value })));
+    setFormOtpSecret(item.otpSecret || "");
+    setFormExpiresAt(item.expiresAt || "");
   };
 
   const handleStartCreate = (type: ItemType) => {
@@ -447,6 +454,9 @@ export default function App() {
     setFormIdentityPhone("");
     setFormIdentityAddress("");
     setFormNotes("");
+    setFormCustomFields([]);
+    setFormOtpSecret("");
+    setFormExpiresAt("");
     setShowFormPassword(false);
   };
 
@@ -484,6 +494,9 @@ export default function App() {
         identityPhone: formIdentityPhone,
         identityAddress: formIdentityAddress,
         notes: formNotes,
+        customFields: Object.fromEntries(formCustomFields.filter(f => f.key.trim()).map(f => [f.key.trim(), f.value])),
+        otpSecret: formOtpSecret.trim() || undefined,
+        expiresAt: formExpiresAt || undefined,
         strength: calculatedStr,
         updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
         isFavorite: false,
@@ -513,6 +526,9 @@ export default function App() {
             identityPhone: formIdentityPhone,
             identityAddress: formIdentityAddress,
             notes: formNotes,
+            customFields: Object.fromEntries(formCustomFields.filter(f => f.key.trim()).map(f => [f.key.trim(), f.value])),
+            otpSecret: formOtpSecret.trim() || undefined,
+            expiresAt: formExpiresAt || undefined,
             strength: calculatedStr,
             updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16)
           };
@@ -1426,7 +1442,19 @@ export default function App() {
                                     </div>
 
                                     {/* Title & Core Details */}
-                                    <h3 className="text-xs font-bold text-slate-800 truncate mt-3 pr-2">{item.title}</h3>
+                                    <div className="flex items-center mt-3 space-x-1.5">
+                                      <h3 className="text-xs font-bold text-slate-800 truncate">{item.title}</h3>
+                                      {item.expiresAt && (() => {
+                                        const days = Math.ceil((new Date(item.expiresAt + "T23:59:59").getTime() - Date.now()) / 86400000);
+                                        if (days < 0) {
+                                          return <span className="shrink-0 text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">已过期</span>;
+                                        }
+                                        if (days <= 30) {
+                                          return <span className="shrink-0 text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">剩 {days} 天</span>;
+                                        }
+                                        return null;
+                                      })()}
+                                    </div>
                                     <p className="text-[11px] text-slate-500 truncate mt-1 font-mono font-medium max-w-full">
                                       {item.username || item.cardName || item.identityName || "安全凭密备忘明细"}
                                     </p>
@@ -1791,6 +1819,86 @@ export default function App() {
                                 className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-sans"
                               />
                             </div>
+
+                            {/* TOTP 两步验证 */}
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">两步验证密钥 (TOTP) 可选</label>
+                              <input
+                                type="text"
+                                value={formOtpSecret}
+                                onChange={(e) => {
+                                  // 粘贴 otpauth:// URI 时自动提取 secret
+                                  const v = e.target.value;
+                                  if (v.startsWith("otpauth://")) {
+                                    const m = v.match(/secret=([A-Za-z0-9=]+)/i);
+                                    setFormOtpSecret(m ? m[1] : v);
+                                  } else {
+                                    setFormOtpSecret(v);
+                                  }
+                                }}
+                                placeholder="粘贴 Base32 密钥或 otpauth:// 链接（如网站 2FA 设置页提供的密钥）"
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-mono"
+                              />
+                              <p className="text-[9px] text-slate-400 mt-1">
+                                ⚠️ 保险箱被攻破时验证码与密码将同时泄露——银行/邮箱等高价值账户建议使用独立验证器
+                              </p>
+                            </div>
+
+                            {/* 到期提醒 */}
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">到期提醒 (可选)</label>
+                              <DatePicker value={formExpiresAt} onChange={setFormExpiresAt} />
+                              <p className="text-[9px] text-slate-400 mt-1">适用于卡券有效期、证书过期日等时间敏感条目</p>
+                            </div>
+
+                            {/* 自定义字段 */}
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase">自定义字段 (可选)</label>
+                                <button
+                                  type="button"
+                                  onClick={() => setFormCustomFields(prev => [...prev, { key: "", value: "" }])}
+                                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center space-x-1 cursor-pointer"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                  <span>添加字段</span>
+                                </button>
+                              </div>
+                              {formCustomFields.length === 0 ? (
+                                <p className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 border-dashed rounded-lg px-3 py-2">
+                                  存储标准字段之外的附加信息（如备用邮箱、PIN 码、服务器地址等）
+                                </p>
+                              ) : (
+                                <div className="space-y-1.5">
+                                  {formCustomFields.map((f, idx) => (
+                                    <div key={idx} className="flex items-center space-x-2">
+                                      <input
+                                        type="text"
+                                        placeholder="字段名"
+                                        value={f.key}
+                                        onChange={(e) => setFormCustomFields(prev => prev.map((x, i) => i === idx ? { ...x, key: e.target.value } : x))}
+                                        className="w-1/3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-2.5 py-1.5 text-xs outline-none text-slate-800 font-semibold"
+                                      />
+                                      <input
+                                        type="text"
+                                        placeholder="字段值"
+                                        value={f.value}
+                                        onChange={(e) => setFormCustomFields(prev => prev.map((x, i) => i === idx ? { ...x, value: e.target.value } : x))}
+                                        className="flex-1 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-2.5 py-1.5 text-xs outline-none text-slate-800"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => setFormCustomFields(prev => prev.filter((_, i) => i !== idx))}
+                                        className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer shrink-0"
+                                        title="删除字段"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                             </form>
@@ -2134,6 +2242,7 @@ export default function App() {
                           weakCount={weakCount}
                           reusedCount={reusedCount}
                           compromisedCount={compromisedCount}
+                          expiredCount={vaultItems.filter(i => i.expiresAt && new Date(i.expiresAt + "T23:59:59").getTime() < Date.now()).length}
                           ignoredCount={ignoredCount}
                           passMap={passMap}
                           items={vaultItems}

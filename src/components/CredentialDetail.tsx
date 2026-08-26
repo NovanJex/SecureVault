@@ -1,12 +1,13 @@
 // CredentialDetail — 凭证详情（登录账号 / 虚拟卡券 / 安全备忘 / 密保资料）
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   ShieldCheck, User, CreditCard, FileText, FileCheck2,
   Edit3, Trash2, Copy, Eye, EyeOff, ExternalLink,
-  AlertTriangle, Star, Clock
+  AlertTriangle, Star, Clock, KeyRound
 } from "lucide-react";
 import type { VaultItem } from "../types";
+import { generateTotp } from "../utils/tauriBridge";
 
 export interface CredentialDetailProps {
   item: VaultItem;
@@ -62,6 +63,16 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
               <div>
                 <div className="flex items-center space-x-2">
                   <h1 className="text-xl font-bold text-slate-900 leading-none">{item.title}</h1>
+                  {item.expiresAt && (() => {
+                    const days = Math.ceil((new Date(item.expiresAt + "T23:59:59").getTime() - Date.now()) / 86400000);
+                    if (days < 0) {
+                      return <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded shrink-0">已于 {item.expiresAt} 过期</span>;
+                    }
+                    if (days <= 30) {
+                      return <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded shrink-0">剩 {days} 天到期</span>;
+                    }
+                    return <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded shrink-0">{item.expiresAt} 到期</span>;
+                  })()}
                   <button onClick={() => onToggleFavorite(item.id)}
                     className={`p-1 rounded-md transition-all ${item.isFavorite ? "text-amber-500 hover:text-amber-600 bg-amber-50/50" : "text-slate-300 hover:text-amber-400"}`}
                     title={item.isFavorite ? "取消星标" : "加入星标"}>
@@ -158,6 +169,19 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
                 <button onClick={() => onCopy(item.notes || "", "安全备忘")} className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-all"><Copy className="w-3.5 h-3.5" /></button>
               </div>
             )}
+
+            {item.otpSecret && <TotpSection secret={item.otpSecret} onCopy={onCopy} />}
+
+            {item.customFields && Object.keys(item.customFields).length > 0 && (
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">自定义字段</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                  {Object.entries(item.customFields).map(([key, value]) => (
+                    <Field key={key} label={key} value={value || ""} onCopy={() => onCopy(value || "", key)} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Security Warnings */}
@@ -236,6 +260,66 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
 );
 
 // ---- 子组件 ----
+
+/** TOTP 两步验证码区域（1 秒轮询刷新，30 秒周期） */
+const TotpSection: React.FC<{ secret: string; onCopy: (text: string, label: string) => void }> = ({ secret, onCopy }) => {
+  const [code, setCode] = useState("");
+  const [remaining, setRemaining] = useState(30);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    const tick = async () => {
+      try {
+        const r = await generateTotp(secret);
+        if (!cancelled) {
+          setCode(r.code);
+          setRemaining(r.remaining);
+          setError("");
+        }
+      } catch (e) {
+        if (!cancelled) setError(String(e));
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [secret]);
+
+  if (error) {
+    return (
+      <div className="bg-rose-50 border border-rose-200/70 p-4 rounded-lg">
+        <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">两步验证码</p>
+        <p className="text-xs text-rose-500 mt-1.5">{error}</p>
+      </div>
+    );
+  }
+
+  const progress = ((30 - remaining) / 30) * 100;
+
+  return (
+    <div className="bg-indigo-50/60 border border-indigo-200/70 p-4 rounded-lg relative group">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center space-x-1.5">
+          <KeyRound className="w-3 h-3" />
+          <span>两步验证码 (TOTP)</span>
+        </p>
+        <button onClick={() => onCopy(code, "验证码")}
+          className="opacity-0 group-hover:opacity-100 text-indigo-500 hover:text-indigo-700 transition-all cursor-pointer flex items-center space-x-1 text-[10px] font-bold">
+          <Copy className="w-3 h-3" />
+          <span>复制</span>
+        </button>
+      </div>
+      <div className="flex items-end justify-between">
+        <span className="text-3xl font-bold font-mono text-indigo-800 tracking-[0.15em] tabular-nums">{code || "······"}</span>
+        <span className="text-[10px] font-mono text-indigo-500 mb-1">{remaining}s</span>
+      </div>
+      <div className="mt-2 h-1 bg-indigo-100 rounded-full overflow-hidden">
+        <div className="h-full bg-indigo-500 rounded-full transition-all duration-1000 ease-linear" style={{ width: `${progress}%` }} />
+      </div>
+    </div>
+  );
+};
 
 const Field: React.FC<{ label: string; value: string; onCopy: () => void }> = ({ label, value, onCopy }) => (
   <div className="border-b border-slate-100 pb-2.5 relative group">

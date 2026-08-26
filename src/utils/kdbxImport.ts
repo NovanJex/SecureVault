@@ -17,6 +17,8 @@ export interface KdbxRawItem {
   notes: string;
   folder: string;
   favorite: boolean;
+  /** 到期日期 YYYY-MM-DD（来自 KeePass ExpiryTime） */
+  expiresAt?: string;
   /** 自定义字段（排除 Title/UserName/Password/URL/Notes/SecureVaultFavorite） */
   custom: Record<string, string>;
 }
@@ -80,6 +82,17 @@ export function convertKdbxPayload(payload: KdbxImportPayload): ImportResult {
         }
       : {};
 
+    // 自定义字段：排除已映射到标准字段的卡片专用字段与 TOTP otp 字段
+    const CARD_KEYS = ["卡号", "有效期", "CVV", "Expires", "CC Expiry", "otp", "TOTP"];
+    const customFields = Object.fromEntries(
+      Object.entries(raw.custom).filter(([k]) => !CARD_KEYS.includes(k))
+    );
+
+    // TOTP：解析 KeePass 生态 otp 字段（otpauth:// 格式）提取 Base32 密钥
+    const otpRaw = raw.custom["otp"] || raw.custom["TOTP"] || "";
+    const otpMatch = otpRaw.match(/secret=([A-Za-z0-9=]+)/i);
+    const otpSecret = otpMatch ? otpMatch[1] : (otpRaw && !otpRaw.includes("://") ? otpRaw : undefined);
+
     items.push({
       id: randId(),
       type,
@@ -95,6 +108,9 @@ export function convertKdbxPayload(payload: KdbxImportPayload): ImportResult {
       updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
       isFavorite: raw.favorite,
       ignoreSecurityWarning: false,
+      customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
+      otpSecret,
+      expiresAt: raw.expiresAt || undefined,
       ...cardCustom,
     });
   }
