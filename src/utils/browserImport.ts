@@ -3,6 +3,7 @@
 
 import { VaultItem, ItemType } from "../types";
 import { secureRandomIndex } from "./vaultStorage";
+import { extractOtpSecret } from "./otp";
 
 // ============================================================
 // 类型定义
@@ -299,6 +300,9 @@ function importBitwardenJson(jsonText: string): ImportResult {
     const folder = item.folder || item.folderName || item.collectionIds?.[0] || "Bitwarden 导入";
     folderSet.add(folder);
 
+    // TOTP：Bitwarden 的 login.totp（可能是 otpauth:// URI 或裸 Base32 密钥）
+    const otpSecret = extractOtpSecret(login.totp || "");
+
     items.push({
       id: randId(), type: itemType, title,
       folder, url, username, password,
@@ -307,6 +311,7 @@ function importBitwardenJson(jsonText: string): ImportResult {
       updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
       isFavorite: !!item.favorite,
       ignoreSecurityWarning: false,
+      ...(otpSecret ? { otpSecret } : {}),
       ...(itemType === "card" ? { cardName: item.name, cardNumber: login.username } : {}),
       ...(itemType === "identity" ? { identityName: item.name, identityEmail: login.username } : {}),
     });

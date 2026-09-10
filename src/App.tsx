@@ -61,6 +61,8 @@ import { BrowserImportPreview } from "./components/BrowserImportPreview";
 import { DatePicker } from "./components/DatePicker";
 import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/browserImport";
 import { convertKdbxPayload } from "./utils/kdbxImport";
+import { extractOtpSecret } from "./utils/otp";
+import { isExpired, daysUntilExpiry } from "./utils/dateUtils";
 
 export default function App() {
   // ===== 保险箱核心 Hook =====
@@ -495,7 +497,12 @@ export default function App() {
         identityAddress: formIdentityAddress,
         notes: formNotes,
         customFields: Object.fromEntries(formCustomFields.filter(f => f.key.trim()).map(f => [f.key.trim(), f.value])),
-        otpSecret: formOtpSecret.trim() || undefined,
+        otpSecret: (() => {
+          const v = formOtpSecret.trim();
+          if (!v) return undefined;
+          // 兜底：URI 形式则提取密钥，无法提取则不保存（避免无效 URI 被当作密钥）
+          return v.includes("://") ? extractOtpSecret(v) : v;
+        })(),
         expiresAt: formExpiresAt || undefined,
         strength: calculatedStr,
         updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
@@ -527,7 +534,12 @@ export default function App() {
             identityAddress: formIdentityAddress,
             notes: formNotes,
             customFields: Object.fromEntries(formCustomFields.filter(f => f.key.trim()).map(f => [f.key.trim(), f.value])),
-            otpSecret: formOtpSecret.trim() || undefined,
+            otpSecret: (() => {
+              const v = formOtpSecret.trim();
+              if (!v) return undefined;
+              // 兜底：URI 形式则提取密钥，无法提取则不保存（避免无效 URI 被当作密钥）
+              return v.includes("://") ? extractOtpSecret(v) : v;
+            })(),
             expiresAt: formExpiresAt || undefined,
             strength: calculatedStr,
             updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16)
@@ -1445,8 +1457,8 @@ export default function App() {
                                     <div className="flex items-center mt-3 space-x-1.5">
                                       <h3 className="text-xs font-bold text-slate-800 truncate">{item.title}</h3>
                                       {item.expiresAt && (() => {
-                                        const days = Math.ceil((new Date(item.expiresAt + "T23:59:59").getTime() - Date.now()) / 86400000);
-                                        if (days < 0) {
+                                        const days = daysUntilExpiry(item.expiresAt);
+                                        if (isExpired(item.expiresAt)) {
                                           return <span className="shrink-0 text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">已过期</span>;
                                         }
                                         if (days <= 30) {
@@ -1827,11 +1839,11 @@ export default function App() {
                                 type="text"
                                 value={formOtpSecret}
                                 onChange={(e) => {
-                                  // 粘贴 otpauth:// URI 时自动提取 secret
+                                  // 粘贴 otpauth:// URI 时自动提取并归一化密钥；解析失败保留原文供用户修正
                                   const v = e.target.value;
-                                  if (v.startsWith("otpauth://")) {
-                                    const m = v.match(/secret=([A-Za-z0-9=]+)/i);
-                                    setFormOtpSecret(m ? m[1] : v);
+                                  if (v.includes("://")) {
+                                    const extracted = extractOtpSecret(v);
+                                    setFormOtpSecret(extracted ? extracted : v);
                                   } else {
                                     setFormOtpSecret(v);
                                   }
@@ -2242,7 +2254,7 @@ export default function App() {
                           weakCount={weakCount}
                           reusedCount={reusedCount}
                           compromisedCount={compromisedCount}
-                          expiredCount={vaultItems.filter(i => i.expiresAt && new Date(i.expiresAt + "T23:59:59").getTime() < Date.now()).length}
+                          expiredCount={vaultItems.filter(i => isExpired(i.expiresAt)).length}
                           ignoredCount={ignoredCount}
                           passMap={passMap}
                           items={vaultItems}

@@ -4,6 +4,7 @@
 
 import React, { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { formatDateCn } from "../utils/dateUtils";
 
 interface DatePickerProps {
   value: string; // YYYY-MM-DD 或 ""
@@ -13,12 +14,6 @@ interface DatePickerProps {
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 const MONTHS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
 
-/** 友好中文格式：2026-08-27 → 2026年8月27日 */
-function formatCn(dateStr: string): string {
-  if (!dateStr) return "";
-  const [y, m, d] = dateStr.split("-");
-  return `${Number(y)}年${Number(m)}月${Number(d)}日`;
-}
 
 export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
@@ -89,13 +84,15 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
     else if (viewMode === "month") { setYearPage(viewYear - 6); setViewMode("year"); }
   };
 
-  // 当月日历格（null 为前导空白）
-  const firstDay = new Date(viewYear, viewMonth, 1).getDay();
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
-  const cells: (number | null)[] = [
-    ...Array.from({ length: firstDay }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
-  ];
+  // 当月日历格（null 为前导空白；仅在年月变化时重算）
+  const cells: (number | null)[] = React.useMemo(() => {
+    const firstDay = new Date(viewYear, viewMonth, 1).getDay();
+    const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    return [
+      ...Array.from({ length: firstDay }, () => null),
+      ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+    ];
+  }, [viewYear, viewMonth]);
 
   const dateStr = (d: number) => `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
@@ -112,7 +109,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
         >
           <span className="flex items-center space-x-2 min-w-0">
             <CalendarDays className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-            <span className="truncate">{value ? formatCn(value) : "选择到期日期"}</span>
+            <span className="truncate">{value ? formatDateCn(value) : "选择到期日期"}</span>
           </span>
         </button>
         {value && (
@@ -132,8 +129,8 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
       {/* 日历弹层（fixed 视口定位，不被滚动容器裁剪，空间不足自动向上） */}
       {open && anchor && (
         <>
-          <div className="fixed inset-0 z-30 cursor-default" onClick={() => setOpen(false)} />
-          <div className="fixed bg-white border border-slate-200/90 rounded-lg shadow-lg p-2.5 z-40 w-64"
+          <div className="fixed inset-0 z-40 cursor-default" onClick={() => setOpen(false)} />
+          <div className="fixed bg-white border border-slate-200/90 rounded-lg shadow-lg p-2.5 z-50 w-64"
             style={{ top: anchor.top, left: anchor.left }}>
             {/* 标题导航 */}
             <div className="flex items-center justify-between mb-2">

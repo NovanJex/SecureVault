@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { VaultItem } from "../types";
 import { generateTotp } from "../utils/tauriBridge";
+import { isExpired, daysUntilExpiry, formatDateCn } from "../utils/dateUtils";
 
 export interface CredentialDetailProps {
   item: VaultItem;
@@ -64,14 +65,14 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
                 <div className="flex items-center space-x-2">
                   <h1 className="text-xl font-bold text-slate-900 leading-none">{item.title}</h1>
                   {item.expiresAt && (() => {
-                    const days = Math.ceil((new Date(item.expiresAt + "T23:59:59").getTime() - Date.now()) / 86400000);
-                    if (days < 0) {
-                      return <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded shrink-0">已于 {item.expiresAt} 过期</span>;
+                    const days = daysUntilExpiry(item.expiresAt);
+                    if (isExpired(item.expiresAt)) {
+                      return <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded shrink-0">{formatDateCn(item.expiresAt)} 已过期</span>;
                     }
                     if (days <= 30) {
                       return <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded shrink-0">剩 {days} 天到期</span>;
                     }
-                    return <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded shrink-0">{item.expiresAt} 到期</span>;
+                    return <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded shrink-0">{formatDateCn(item.expiresAt)} 到期</span>;
                   })()}
                   <button onClick={() => onToggleFavorite(item.id)}
                     className={`p-1 rounded-md transition-all ${item.isFavorite ? "text-amber-500 hover:text-amber-600 bg-amber-50/50" : "text-slate-300 hover:text-amber-400"}`}
@@ -170,7 +171,7 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
               </div>
             )}
 
-            {item.otpSecret && <TotpSection secret={item.otpSecret} onCopy={onCopy} />}
+            {item.otpSecret && <TotpSection key={item.otpSecret} secret={item.otpSecret} onCopy={onCopy} />}
 
             {item.customFields && Object.keys(item.customFields).length > 0 && (
               <div>
@@ -261,26 +262,45 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
 
 // ---- 子组件 ----
 
-/** TOTP 两步验证码区域（1 秒轮询刷新，30 秒周期） */
+/** TOTP 两步验证码区域
+ *  IPC 仅在周期边界（每 30s）调用一次生成新码；每秒本地倒计时（避免 86k 次/天的无效 IPC）
+ *  父组件通过 key={secret} 强制重挂载，切换凭证时不会残留上一条目的验证码 */
+const TOTP_PERIOD = 30;
+
+/** 当前周期剩余秒数（本地时钟计算，永不漂移） */
+function calcRemaining(): number {
+  return TOTP_PERIOD - (Math.floor(Date.now() / 1000) % TOTP_PERIOD);
+}
+
 const TotpSection: React.FC<{ secret: string; onCopy: (text: string, label: string) => void }> = ({ secret, onCopy }) => {
   const [code, setCode] = useState("");
-  const [remaining, setRemaining] = useState(30);
+  const [remaining, setRemaining] = useState(calcRemaining);
   const [error, setError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
+    let lastPeriod = -1;
+
     const tick = async () => {
-      try {
-        const r = await generateTotp(secret);
-        if (!cancelled) {
-          setCode(r.code);
-          setRemaining(r.remaining);
-          setError("");
+      const period = Math.floor(Date.now() / (TOTP_PERIOD * 1000));
+      if (period !== lastPeriod) {
+        // 新周期：向 Rust 请求新验证码
+        lastPeriod = period;
+        try {
+          const r = await generateTotp(secret);
+          if (!cancelled) {
+            setCode(r.code);
+            setRemaining(calcRemaining());
+            setError("");
+          }
+        } catch (e) {
+          if (!cancelled) setError(String(e));
         }
-      } catch (e) {
-        if (!cancelled) setError(String(e));
+      } else {
+        setRemaining(calcRemaining()); // 本地倒计时，不触碰 IPC
       }
     };
+
     tick();
     const id = setInterval(tick, 1000);
     return () => { cancelled = true; clearInterval(id); };
@@ -295,7 +315,7 @@ const TotpSection: React.FC<{ secret: string; onCopy: (text: string, label: stri
     );
   }
 
-  const progress = ((30 - remaining) / 30) * 100;
+  const progress = ((TOTP_PERIOD - remaining) / TOTP_PERIOD) * 100;
 
   return (
     <div className="bg-indigo-50/60 border border-indigo-200/70 p-4 rounded-lg relative group">

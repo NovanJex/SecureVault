@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.1-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -182,6 +182,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.5.1` | 2026-08-27 | TOTP fixes, KDBX field mapping fixes, expiry semantics |
 | `v1.5.0` | 2026-08-27 | TOTP 2FA codes, custom fields, expiry reminders |
 | `v1.4.1` | 2026-08-14 | Sidebar alignment, CI publish fixes |
 | `v1.4.0` | 2026-08-12 | KeePass KDBX import/export, centered window |

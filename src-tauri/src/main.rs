@@ -217,12 +217,46 @@ fn write_binary_file(path: String, data_b64: String) -> Result<(), String> {
         .map_err(|e| format!("写入二进制文件失败: {}", e))
 }
 
+/// TOTP 生成结果（Tauri 自动序列化为 JSON 对象传给前端）
+#[derive(serde::Serialize)]
+struct TotpResponse {
+    code: String,
+    remaining: u64,
+}
+
+/// URL 百分号编码（用于 otpauth label，处理中文与 URI 保留字符）
+fn url_encode(s: &str) -> String {
+    s.bytes()
+        .map(|b| {
+            if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.' | b'~') {
+                (b as char).to_string()
+            } else {
+                format!("%{:02X}", b)
+            }
+        })
+        .collect()
+}
+
+/// Base32 密钥归一化：去空格/连字符/padding、转大写（兼容各站点展示格式）
+fn normalize_totp_secret(secret: &str) -> String {
+    secret
+        .trim()
+        .to_uppercase()
+        .replace([' ', '-', '\t'], "")
+        .trim_end_matches('=')
+        .to_string()
+}
+
 // 10. 生成 TOTP 两步验证码（RFC 6238 标准，Base32 密钥，30 秒周期 6 位码）
 #[tauri::command]
-fn generate_totp(secret: String) -> Result<String, String> {
+fn generate_totp(secret: String) -> Result<TotpResponse, String> {
     use totp_rs::{Algorithm, Secret, TOTP};
 
-    let secret = Secret::Encoded(secret);
+    let normalized = normalize_totp_secret(&secret);
+    if normalized.is_empty() {
+        return Err("TOTP 密钥为空".to_string());
+    }
+    let secret = Secret::Encoded(normalized);
     let bytes = secret.to_bytes()
         .map_err(|e| format!("TOTP 密钥无效（应为 Base32 编码）: {}", e))?;
     let totp = TOTP::new(Algorithm::SHA1, 6, 0, 30, bytes)
@@ -230,7 +264,7 @@ fn generate_totp(secret: String) -> Result<String, String> {
     let code = totp.generate_current().map_err(|e| e.to_string())?;
     let remaining = totp.ttl().unwrap_or(0);
 
-    Ok(serde_json::json!({ "code": code, "remaining": remaining }).to_string())
+    Ok(TotpResponse { code, remaining })
 }
 
 // 11. 导出 KeePass KDBX 数据库文件（KDBX4 + Argon2id + AES-256-CBC + GZip）
@@ -303,12 +337,27 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
             if item.get("isFavorite").and_then(|v| v.as_bool()).unwrap_or(false) {
                 entry.fields.insert("SecureVaultFavorite".into(), Value::Unprotected("1".into()));
             }
-            // TOTP 密钥 → KeePass 生态标准 otp 字段（otpauth:// 格式）
-            let otp = get_str(item, "otpSecret");
+            // 自定义字段写回 KDBX custom fields（跳过标准字段，防止覆盖密码/标题等核心字段）
+            const RESERVED: [&str; 10] = [
+                "Title", "UserName", "Password", "URL", "Notes",
+                "SecureVaultFavorite", "otp", "卡号", "有效期", "CVV",
+            ];
+            if let Some(custom) = item.get("customFields").and_then(|v| v.as_object()) {
+                for (k, v) in custom {
+                    if RESERVED.contains(&k.as_str()) {
+                        continue;
+                    }
+                    if let Some(s) = v.as_str() {
+                        entry.fields.insert(k.clone(), Value::Unprotected(s.to_string()));
+                    }
+                }
+            }
+            // TOTP 密钥 → KeePass 生态标准 otp 字段（otpauth:// 格式，label 需 URL 编码）
+            let otp = normalize_totp_secret(&get_str(item, "otpSecret"));
             if !otp.is_empty() {
                 let otp_url = format!(
                     "otpauth://totp/{}?secret={}&issuer=SecureVault",
-                    get_str(item, "title"),
+                    url_encode(&get_str(item, "title")),
                     otp
                 );
                 entry.fields.insert("otp".into(), Value::Unprotected(otp_url));
@@ -319,14 +368,6 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
                 if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(&format!("{}T00:00:00", expires), "%Y-%m-%dT%H:%M:%S") {
                     entry.times.expires = true;
                     entry.times.set_expiry(dt);
-                }
-            }
-            // 自定义字段写回 KDBX custom fields（跳过已映射的标准字段）
-            if let Some(custom) = item.get("customFields").and_then(|v| v.as_object()) {
-                for (k, v) in custom {
-                    if let Some(s) = v.as_str() {
-                        entry.fields.insert(k.clone(), Value::Unprotected(s.to_string()));
-                    }
                 }
             }
             group.add_child(entry);
@@ -459,4 +500,52 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_totp_secret() {
+        // 小写 → 大写
+        assert_eq!(normalize_totp_secret("gezdgnbvgy3tqojq"), "GEZDGNBVGY3TQOJQ");
+        // 空格分组 → 去除
+        assert_eq!(normalize_totp_secret("GEZD GNBV GY3T"), "GEZDGNBVGY3T");
+        // 连字符分组 → 去除
+        assert_eq!(normalize_totp_secret("GEZD-GNBV-GY3T"), "GEZDGNBVGY3T");
+        // padding → 去除
+        assert_eq!(normalize_totp_secret("GEZDGNBVGY3T===="), "GEZDGNBVGY3T");
+        // 混合 + 首尾空白
+        assert_eq!(normalize_totp_secret("  gezd gnbv  "), "GEZDGNBV");
+    }
+
+    #[test]
+    fn test_generate_totp_variants_same_code() {
+        // RFC 6238 测试密钥的三种展示形式，归一化后应生成相同的验证码
+        let variants = [
+            "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ",
+            "gezdgnbvgy3tqojqgezdgnbvgy3tqojq",
+            "GEZD GNBV GY3T QOJQ GEZD GNBV GY3T QOJQ",
+        ];
+        let codes: Vec<String> = variants
+            .iter()
+            .map(|s| generate_totp(s.to_string()).expect("有效密钥应生成成功").code)
+            .collect();
+        assert_eq!(codes[0], codes[1], "小写密钥应与大写生成相同验证码");
+        assert_eq!(codes[1], codes[2], "空格分组密钥应与标准格式生成相同验证码");
+    }
+
+    #[test]
+    fn test_generate_totp_invalid_input() {
+        assert!(generate_totp("".to_string()).is_err(), "空密钥应报错");
+        assert!(generate_totp("!!!not-base32!!!".to_string()).is_err(), "非法字符应报错");
+    }
+
+    #[test]
+    fn test_url_encode() {
+        assert_eq!(url_encode("GitHub"), "GitHub");
+        assert_eq!(url_encode("a b"), "a%20b");
+        assert_eq!(url_encode("工资卡?备用"), "%E5%B7%A5%E8%B5%84%E5%8D%A1%3F%E5%A4%87%E7%94%A8");
+    }
 }

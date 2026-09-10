@@ -4,6 +4,7 @@
 import { VaultItem, ItemType } from "../types";
 import { ImportResult } from "./browserImport";
 import { secureRandomIndex } from "./vaultStorage";
+import { extractOtpSecret } from "./otp";
 
 // ============================================================
 // Rust 端返回的原始条目结构
@@ -76,22 +77,27 @@ export function convertKdbxPayload(payload: KdbxImportPayload): ImportResult {
     const cardCustom = type === "card"
       ? {
           cardName: raw.title,
-          cardNumber: raw.username,
+          // 卡号优先取 卡号 字段（SecureVault 导出、KeePassXC 惯例），回退到 UserName
+          cardNumber: raw.custom["卡号"] || raw.username,
           cardExpiry: raw.custom["有效期"] || raw.custom["Expires"] || raw.custom["CC Expiry"] || "",
           cardCvv: raw.custom["CVV"] || "",
         }
       : {};
 
-    // 自定义字段：排除已映射到标准字段的卡片专用字段与 TOTP otp 字段
-    const CARD_KEYS = ["卡号", "有效期", "CVV", "Expires", "CC Expiry", "otp", "TOTP"];
-    const customFields = Object.fromEntries(
-      Object.entries(raw.custom).filter(([k]) => !CARD_KEYS.includes(k))
-    );
-
     // TOTP：解析 KeePass 生态 otp 字段（otpauth:// 格式）提取 Base32 密钥
     const otpRaw = raw.custom["otp"] || raw.custom["TOTP"] || "";
-    const otpMatch = otpRaw.match(/secret=([A-Za-z0-9=]+)/i);
-    const otpSecret = otpMatch ? otpMatch[1] : (otpRaw && !otpRaw.includes("://") ? otpRaw : undefined);
+    const otpSecret = extractOtpSecret(otpRaw);
+    // otp 字段解析失败时**不丢弃**——保留进 customFields，避免静默数据丢失
+    const OTP_KEYS = ["otp", "TOTP"];
+    const CARD_KEYS = ["卡号", "有效期", "CVV", "Expires", "CC Expiry"];
+    const customFields = Object.fromEntries(
+      Object.entries(raw.custom).filter(([k]) => {
+        if (CARD_KEYS.includes(k)) return false;
+        // otp/TOTP 字段仅在成功解析为密钥时才移除（已映射到 otpSecret）
+        if (OTP_KEYS.includes(k)) return !otpSecret;
+        return true;
+      })
+    );
 
     items.push({
       id: randId(),
