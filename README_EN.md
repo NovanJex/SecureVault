@@ -182,9 +182,9 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
-| `v1.5.1` | 2026-08-27 | TOTP fixes, KDBX field mapping fixes, expiry semantics |
+| `v1.5.1` | 2026-09-10 | TOTP fixes, KDBX field mapping fixes, expiry semantics |
 | `v1.5.0` | 2026-08-27 | TOTP 2FA codes, custom fields, expiry reminders |
-| `v1.4.1` | 2026-08-14 | Sidebar alignment, CI publish fixes |
+| `v1.4.1` | 2026-08-16 | Sidebar alignment, CI publish fixes |
 | `v1.4.0` | 2026-08-12 | KeePass KDBX import/export, centered window |
 | `v1.3.1` | 2026-08-08 | Import labels update, README additions |
 | `v1.3.0` | 2026-08-08 | Browser import phase 2 (1Password/LastPass/Bitwarden/Safari), sidebar polish |

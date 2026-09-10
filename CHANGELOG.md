@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## v1.5.1 (2026-08-27)
+## v1.5.1 (2026-09-10)
 
 ### 🔧 Fixes
 
@@ -47,7 +47,7 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## v1.4.1 (2026-08-14)
+## v1.4.1 (2026-08-16)
 
 ### 🔨 Improvements
 
