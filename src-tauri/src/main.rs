@@ -259,8 +259,10 @@ fn generate_totp(secret: String) -> Result<TotpResponse, String> {
     let secret = Secret::Encoded(normalized);
     let bytes = secret.to_bytes()
         .map_err(|e| format!("TOTP 密钥无效（应为 Base32 编码）: {}", e))?;
-    let totp = TOTP::new(Algorithm::SHA1, 6, 0, 30, bytes)
-        .map_err(|e| format!("TOTP 密钥无效: {}", e))?;
+    // totp-rs 的 TOTP::new 强制要求密钥 ≥128 bits，但 GitHub/GitLab 等服务使用
+    // 80 bits（16 字符）密钥，Google Authenticator 等主流验证器均接受，
+    // 故使用 new_unchecked 跳过长度限制（Base32 合法性校验仍在上方保留）
+    let totp = TOTP::new_unchecked(Algorithm::SHA1, 6, 0, 30, bytes);
     let code = totp.generate_current().map_err(|e| e.to_string())?;
     let remaining = totp.ttl().unwrap_or(0);
 
@@ -540,6 +542,27 @@ mod tests {
     fn test_generate_totp_invalid_input() {
         assert!(generate_totp("".to_string()).is_err(), "空密钥应报错");
         assert!(generate_totp("!!!not-base32!!!".to_string()).is_err(), "非法字符应报错");
+    }
+
+    #[test]
+    fn test_generate_totp_80bit_secret() {
+        // GitHub/GitLab 等站点使用 16 字符（80 bits）密钥——必须支持
+        // 此前 TOTP::new 的长度校验会误报"80 bits is not enough"
+        let result = generate_totp("MFRGGZDFMZTWQ2LK".to_string());
+        assert!(result.is_ok(), "80-bit 密钥（16 字符）应能正常生成验证码: {:?}", result.err());
+        let r = result.unwrap();
+        assert_eq!(r.code.len(), 6, "验证码应为 6 位");
+        assert!(r.code.chars().all(|c| c.is_ascii_digit()), "验证码应全为数字");
+    }
+
+    #[test]
+    fn test_generate_totp_80bit_known_vector() {
+        // 固定向量：密钥 MFRGGZDFMZTWQ2LK（80 bits），t=1700000000
+        // 期望值由 Python 独立实现（HMAC-SHA1 + RFC 6238 动态截断）计算得出
+        let key = "MFRGGZDFMZTWQ2LK";
+        let bytes = totp_rs::Secret::Encoded(key.to_string()).to_bytes().unwrap();
+        let totp = totp_rs::TOTP::new_unchecked(totp_rs::Algorithm::SHA1, 6, 0, 30, bytes);
+        assert_eq!(totp.generate(1_700_000_000), "882247");
     }
 
     #[test]

@@ -4,6 +4,23 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.5.2 (2026-09-16)
+
+### 🔧 Fixes
+
+- **TOTP 支持 80-bit 密钥（16 字符）**：GitHub/GitLab 等服务的标准密钥此前被误报"密钥无效（80 bits is not enough）"，现已正常生成验证码
+- 自定义字段「字段名」输入框字重与「字段值」统一（移除加粗）
+
+### ✨ Improvements
+
+- **macOS 通用二进制**：安装包改为 universal 格式，同一 dmg 同时支持 Intel 与 Apple Silicon（M 系列），Intel Mac 用户不再无法运行
+
+### 📝 Docs
+
+- README 下载表与实际产物名对齐（Windows/Linux/macOS 全部补全平台命名），补充 MSI / .deb / .rpm 附加格式说明
+
+---
+
 ## v1.5.1 (2026-09-10)
 
 ### 🔧 Fixes

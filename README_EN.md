@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.1-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.2-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -33,9 +33,11 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 
 | Platform | Installer | Portable |
 | --- | --- | --- |
-| Windows | `SecureVault_x64-setup.exe` | `SecureVault_X.X.X_Windows.zip`（extract and run） |
-| macOS | `SecureVault_aarch64.dmg` | Drag to Applications |
-| Linux | `SecureVault_amd64.AppImage` | `chmod +x` and run
+| Windows | `SecureVault_vX.X.X_Windows_x64-setup.exe` | `SecureVault_vX.X.X_Windows_Portable.zip` (extract and run) |
+| macOS | `SecureVault_vX.X.X_macOS_universal.dmg` (Intel + Apple Silicon) | Drag to Applications |
+| Linux | `SecureVault_vX.X.X_Linux_amd64.AppImage` | `chmod +x` and run |
+
+> 📦 Additional formats: Windows also ships `_Windows_x64_zh-CN.msi`; Linux also provides `.deb` and `.rpm` packages (names without the `v` prefix).
 
 > 🍎 **macOS tip**: If you see "app is damaged", run `xattr -cr /Applications/SecureVault.app` in Terminal and reopen.
 >
@@ -182,6 +184,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.5.2` | 2026-09-16 | TOTP 80-bit key support, macOS universal binary |
 | `v1.5.1` | 2026-09-10 | TOTP fixes, KDBX field mapping fixes, expiry semantics |
 | `v1.5.0` | 2026-08-27 | TOTP 2FA codes, custom fields, expiry reminders |
 | `v1.4.1` | 2026-08-16 | Sidebar alignment, CI publish fixes |

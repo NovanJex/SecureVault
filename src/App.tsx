@@ -1889,7 +1889,7 @@ export default function App() {
                                         placeholder="字段名"
                                         value={f.key}
                                         onChange={(e) => setFormCustomFields(prev => prev.map((x, i) => i === idx ? { ...x, key: e.target.value } : x))}
-                                        className="w-1/3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-2.5 py-1.5 text-xs outline-none text-slate-800 font-semibold"
+                                        className="w-1/3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-2.5 py-1.5 text-xs outline-none text-slate-800"
                                       />
                                       <input
                                         type="text"

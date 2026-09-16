@@ -17,8 +17,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # universal-apple-darwin: 同时包含 Apple Silicon (M 系列) 与 Intel (x86_64)
           - platform: 'macos-latest'
-            args: '--target aarch64-apple-darwin'
+            args: '--target universal-apple-darwin'
           - platform: 'windows-latest'
           - platform: 'ubuntu-22.04'
 
@@ -40,7 +41,8 @@ jobs:
         if: matrix.platform == 'macos-latest'
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          # Universal 构建需要两个架构的 target 同时安装
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
@@ -91,14 +93,21 @@ jobs:
       - name: Ad-hoc codesign macOS app
         if: matrix.platform == 'macos-latest'
         run: |
-          # Tauri v2: app bundle 位于 bundle/macos/，且 --target 时产物在 triple 子目录
+          # Tauri v2: app bundle 位于 bundle/macos/；--target 时产物在 triple 子目录
+          # universal 构建 → universal-apple-darwin，单架构构建 → aarch64/x86_64-apple-darwin
           APP=""
-          for p in "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/SecureVault.app" "src-tauri/target/release/bundle/macos/SecureVault.app"; do
+          for p in \
+            "src-tauri/target/universal-apple-darwin/release/bundle/macos/SecureVault.app" \
+            "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/SecureVault.app" \
+            "src-tauri/target/x86_64-apple-darwin/release/bundle/macos/SecureVault.app" \
+            "src-tauri/target/release/bundle/macos/SecureVault.app"; do
             if [ -d "$p" ]; then APP="$p"; break; fi
           done
           if [ -n "$APP" ]; then
             codesign --force --deep --sign - "$APP"
             echo "✅ Ad-hoc signed $APP"
+            # 输出实际架构验证（universal 应同时含 arm64 与 x86_64）
+            lipo -archs "$APP/Contents/MacOS/SecureVault" 2>/dev/null || true
           else
             echo "⚠️  SecureVault.app not found, skipping codesign"
           fi
@@ -139,9 +148,14 @@ jobs:
         run: |
           VERSION="${{ github.ref_name }}"
           VER="${VERSION#v}"
-          # --target 时产物在 target/<triple>/release/bundle，兼容两种目录
+          # --target 时产物在 target/<triple>/release/bundle
+          # universal 构建 → universal-apple-darwin 目录
           DMG_DIR=""
-          for d in "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg" "src-tauri/target/release/bundle/dmg"; do
+          for d in \
+            "src-tauri/target/universal-apple-darwin/release/bundle/dmg" \
+            "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg" \
+            "src-tauri/target/x86_64-apple-darwin/release/bundle/dmg" \
+            "src-tauri/target/release/bundle/dmg"; do
             if [ -d "$d" ]; then DMG_DIR="$d"; break; fi
           done
           if [ -z "$DMG_DIR" ]; then
@@ -155,11 +169,17 @@ jobs:
             ls -la "$DMG_DIR"
             exit 1
           fi
-          cp "$DMG" "SecureVault_${VERSION}_macOS_aarch64.dmg"
-          gh release upload "$VERSION" "SecureVault_${VERSION}_macOS_aarch64.dmg" --repo ${{ github.repository }} --clobber
+          echo "📦 使用 dmg: $DMG"
+          cp "$DMG" "SecureVault_${VERSION}_macOS_universal.dmg"
+          gh release upload "$VERSION" "SecureVault_${VERSION}_macOS_universal.dmg" --repo ${{ github.repository }} --clobber
+
+          # 删除历史命名的 aarch64 产物（若存在，避免 Release 出现两个 macOS 包）
+          gh release delete-asset "$VERSION" "SecureVault_${VERSION}_macOS_aarch64.dmg" --repo ${{ github.repository }} --yes || true
 
           # 删除原始命名 dmg（保留重命名版；app.tar.gz 无重命名版，保留）
-          gh release delete-asset "$VERSION" "SecureVault_${VER}_aarch64.dmg" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 dmg 不存在或已删除"
+          # universal 构建原始名为 _universal.dmg，历史单架构构建为 _aarch64.dmg
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_universal.dmg" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 universal dmg 不存在或已删除"
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_aarch64.dmg" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 aarch64 dmg 不存在或已删除"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
