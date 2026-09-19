@@ -143,7 +143,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
             </h1>
 
             <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
-              打包生成的扩展内嵌桌面端加密备份数据，无需打开 Web 主应用。安装后输入主密码，通过轻量级扩展即可离线解锁、一键填充凭证。支持 Argon2id / PBKDF2 双 KDF 本地零知识解密，15 分钟无操作自动锁定内存密钥，数据绝不联网、绝不上传。
+              打包生成的扩展内嵌桌面端加密备份数据，无需打开 Web 主应用。安装后输入主密码，通过轻量级扩展即可离线解锁、一键填充凭证。支持 Argon2id / PBKDF2 双 KDF 本地零知识解密，解锁一次即可在整个浏览器会话中免输入（关闭浏览器自动清除），数据绝不联网、绝不上传。
             </p>
 
           </div>
@@ -381,7 +381,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                 { title: "零知识本地派生", desc: "主密码仅在扩展内存参与 PBKDF2 解密 + AES-GCM，数据不上报任何服务器。", icon: KeyRound, color: "text-indigo-600 bg-indigo-50 border-indigo-100" },
                 { title: "智能域名精准匹配", desc: "自动获取当前标签页主域名，优先呈现该站点的关联凭证。", icon: Globe, color: "text-blue-600 bg-blue-50 border-blue-100" },
                 { title: "防窃听无痕填充", desc: "通过 Content Script 沙箱隔离注入，有效隔离恶意页面 DOM 侦听。", icon: Zap, color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
-                { title: "15 分钟内存自动锁定", desc: "休眠超时后自动清空内存密钥，防止电脑借用时的隐私泄露。", icon: Lock, color: "text-purple-600 bg-purple-50 border-purple-100" }
+                { title: "会话级免输入解锁", desc: "解锁一次，浏览器会话内填充无需再输主密码；关闭浏览器自动清除内存密钥。", icon: Lock, color: "text-purple-600 bg-purple-50 border-purple-100" }
               ].map((feat, idx) => {
                 const IconComp = feat.icon;
                 return (

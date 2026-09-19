@@ -4,26 +4,41 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.5.3 (2026-09-19)
+
+### ✨ 改进
+
+**浏览器扩展免输入解锁**
+- 修复扩展解锁状态快速失效问题：此前因 Manifest V3 后台休眠机制，解锁后约 30 秒即被清除，导致每次填充都要重新输入主密码
+- 现在解锁一次即可在**整个浏览器会话内免输入**（密钥仅存内存、不落磁盘，关闭浏览器自动清除）
+- 扩展内保留「锁定」按钮，可随时手动清除
+
+**文档与工程**
+- CHANGELOG / CONTRIBUTING 文档统一为中文
+- CI 构建完成后自动生成 Release 说明
+
+---
+
 ## v1.5.2 (2026-09-16)
 
-### 🔧 Fixes
+### 🔧 修复
 
-- **TOTP 支持 80-bit 密钥（16 字符）**：GitHub/GitLab 等服务的标准密钥此前被误报"密钥无效（80 bits is not enough）"，现已正常生成验证码
-- 自定义字段「字段名」输入框字重与「字段值」统一（移除加粗）
+**TOTP 两步验证码**
+- **支持 80-bit（16 字符）密钥**：GitHub、GitLab 等服务的标准 TOTP 密钥此前会被误报"密钥无效"，现已可正常使用并生成验证码
 
-### ✨ Improvements
+**界面**
+- 修复自定义字段「字段名」输入框文字加粗问题，与「字段值」样式统一
 
-- **macOS 通用二进制**：安装包改为 universal 格式，同一 dmg 同时支持 Intel 与 Apple Silicon（M 系列），Intel Mac 用户不再无法运行
+### ✨ 改进
 
-### 📝 Docs
-
-- README 下载表与实际产物名对齐（Windows/Linux/macOS 全部补全平台命名），补充 MSI / .deb / .rpm 附加格式说明
+- **macOS 安装包改为通用二进制**：一个 dmg 同时支持 **Intel** 与 **Apple Silicon（M 系列）**，Intel Mac 用户可以正常安装使用（此前仅有 ARM64 版本）
+- README 下载表与实际产物名对齐（Windows/Linux/macOS 补全平台命名），补充 MSI / .deb / .rpm 附加格式说明
 
 ---
 
 ## v1.5.1 (2026-09-10)
 
-### 🔧 Fixes
+### 🔧 修复
 
 - **TOTP 功能修复**：修正 IPC 数据契约（Rust 返回结构体而非 JSON 字符串），验证码现在正确显示
 - **TOTP 密钥兼容**：小写/空格分组/padding 格式的密钥自动归一化（此前被误报"密钥无效"）
@@ -66,15 +81,15 @@ All notable changes to this project will be documented in this file.
 
 ## v1.4.1 (2026-08-16)
 
-### 🔨 Improvements
+### ✨ 改进
 
-- Sidebar「按模板过滤」spacing aligned with「常用视角」and「自定义文件夹」(uniform padding, direct icon display)
+- 侧边栏「按模板过滤」间距与「常用视角」「自定义文件夹」对齐（统一内边距、图标直接展示）
 
-### 🔧 Fixes
+### 🔧 修复
 
-- CI: macOS artifact path for `--target` build (triple subdirectory detection), missing GH_TOKEN, codesign path
-- CI: remove duplicate raw release assets, keep renamed versions only (deb/rpm/app.tar.gz preserved)
-- README: restore accidentally removed v1.3.1 row in version history
+- CI：修复 macOS `--target` 构建的产物路径（triple 子目录探测）、缺失的 GH_TOKEN、codesign 路径
+- CI：移除重复的原始发布资产，仅保留重命名版本（deb/rpm/app.tar.gz 保留）
+- README：恢复被误删的 v1.3.1 版本历史行
 
 ---
 
@@ -90,11 +105,11 @@ All notable changes to this project will be documented in this file.
 - 星标收藏映射为 `SecureVaultFavorite` 自定义字段
 - 导入类型智能推断：卡号特征 / 卡字段 → 虚拟卡券，无凭据 → 安全备忘
 
-### ✨ Improvements
+### ✨ 改进
 
 - 窗口启动时自动居中（`center: true`），不再由系统级联放置
 
-### 🔧 Fixes
+### 🔧 修复
 
 - 修复 rust-argon2 与 argon2 同名 lib 冲突（E0464），通过派生默认配置版本规避
 
@@ -102,123 +117,121 @@ All notable changes to this project will be documented in this file.
 
 ## v1.3.1 (2026-08-08)
 
-### 🔧 Fixes
+### 🔧 修复
 
-- Import button labels updated to cover all supported formats (CSV + JSON)
-- README version badge and history corrected
-- CHANGELOG version references fixed
+- 导入按钮文案更新，覆盖所有支持的格式（CSV + JSON）
+- README 版本徽章与版本历史更正
+- CHANGELOG 版本引用修正
 
 ---
 
 ## v1.3.0 (2026-08-08)
 
-### 🆕 Browser Password Import — Phase 2
+### 🆕 浏览器密码导入 — 二期
 
-- New formats: 1Password CSV, LastPass CSV, Bitwarden CSV/JSON, Safari CSV
-- Auto-detect source with 6-level detection chain + Safari/1Password case distinction
-- LastPass grouping column auto-mapped to folders
-- Bitwarden folder/collectionIds auto-mapped to folders
-- Bitwarden JSON type mapping (login/note/card/identity)
+- 新增格式：1Password CSV、LastPass CSV、Bitwarden CSV/JSON、Safari CSV
+- 6 级检测链自动识别来源 + Safari/1Password 大小写区分
+- LastPass grouping 列自动映射为文件夹
+- Bitwarden folder/collectionIds 自动映射为文件夹
+- Bitwarden JSON 类型映射（登录 / 备忘 / 卡券 / 身份）
 
-### 🔧 Fixes
+### 🔧 修复
 
-- LastPass CSV misidentified as Chrome (detection order fix)
-- Safari CSV misidentified as 1Password (header case check)
-- Import preview format label not showing for new formats
+- LastPass CSV 被误判为 Chrome（检测顺序修复）
+- Safari CSV 被误判为 1Password（表头大小写判断）
+- 导入预览对新格式不显示来源标签
 
-### 🔨 Improvements
+### ✨ 改进
 
-- Sidebar spacing adjusted to eliminate scrollbar with 7+ folders
-- File picker now accepts .json format
-- Folder list max-height increased (192px → 208px)
+- 侧边栏间距调整，7 个以上文件夹时不再出现滚动条
+- 文件选择器支持 .json 格式
+- 文件夹列表最大高度提升（192px → 208px）
 
 ---
 
 ## v1.2.0 (2026-08-07)
 
-### 🆕 Browser Password Import
+### 🆕 浏览器密码导入
 
-- Import passwords from Chrome/Edge/Firefox CSV export files
-- Auto-detect browser format, domain-based duplicate detection
-- Preview with infinite scroll, password reveal, skip/merge strategy
-- Automatic encoding detection (UTF-8/GBK/UTF-16)
+- 支持从 Chrome/Edge/Firefox 导出的 CSV 文件导入密码
+- 自动识别浏览器格式，基于域名的重复检测
+- 预览支持无限滚动、密码显示、跳过/合并策略
+- 自动编码检测（UTF-8/GBK/UTF-16）
 
-### 🆕 Change Master Password
+### 🆕 修改主密码
 
-- Settings panel entry to change master password
-- Support switching KDF algorithm (Argon2id ↔ PBKDF2)
-- Auto-lock after success to verify new password
+- 设置面板新增修改主密码入口
+- 支持切换 KDF 算法（Argon2id ↔ PBKDF2）
+- 修改成功后自动锁定以验证新密码
 
-### 🔧 Fixes
+### 🔧 修复
 
-- Critical fix: `storedCiphertext` not synced after password change, preventing unlock
-- Fix `unlock` stale closure missing `selectedKdf` dependency
-- GitHub Actions: `checkout@v5` + `setup-node@v6` (Node.js 24)
-- Fix Chinese CSV import encoding errors (GBK detection)
+- 关键修复：改密后 `storedCiphertext` 未同步导致无法解锁
+- 修复 `unlock` 闭包缺少 `selectedKdf` 依赖
+- GitHub Actions：升级 `checkout@v5` + `setup-node@v6`（Node.js 24 兼容）
+- 修复中文 CSV 导入乱码（GBK 检测）
 
-### 🔨 Improvements
+### ✨ 改进
 
-- Settings page layout restructured
-- Native selects replaced with custom dropdowns (matching LockScreen style)
-- Sidebar fixed, content area scrolls independently
-- Backup JSON now includes `kdf` field
+- 设置页布局重组
+- 原生 select 替换为自定义下拉（对齐 LockScreen 风格）
+- 侧边栏固定，内容区独立滚动
+- 备份 JSON 新增 `kdf` 字段
 
 ---
 
 ## v1.1.1 (2026-08-04)
 
-### 🔧 Fixes
+### 🔧 修复
 
-- macOS: build pipeline now includes ad-hoc codesign, fixing "app is damaged" on Apple Silicon
-- README: storage path corrected to `%LOCALAPPDATA%` on Windows
+- macOS：构建流程加入 ad-hoc codesign，修复 Apple Silicon 上"应用已损坏"提示
+- README：修正 Windows 存储路径为 `%LOCALAPPDATA%`
 
 ---
 
 ## v1.1.0 (2026-08-02)
 
-### 🧩 Browser Extension Hub
+### 🧩 浏览器扩展中心
 
-- Sidebar entry to generate Manifest V3 browser extension ZIP with one click
-- Embedded encrypted vault backup with dual KDF support (Argon2id via inline WASM + PBKDF2 via Web Crypto)
-- Extension features: domain matching, one-click autofill, 15-minute memory auto-lock
-- Online simulator: real-time preview of extension popup matching logic
-- Multi-browser installation guides (Chrome/Edge/Firefox/Safari/Kiwi)
-- Incremental sync: copy encrypted payload from desktop → paste in extension without re-packaging
+- 侧边栏入口一键生成 Manifest V3 浏览器扩展 ZIP
+- 内嵌加密保险箱备份，双 KDF 支持（Argon2id 经内联 WASM + PBKDF2 经 Web Crypto）
+- 扩展功能：域名匹配、一键填充、15 分钟内存自动锁定
+- 在线模拟器：实时预览扩展弹窗匹配逻辑
+- 多浏览器安装指南（Chrome/Edge/Firefox/Safari/Kiwi）
+- 增量同步：从桌面端复制加密载荷粘贴到扩展，无需重新打包
 
-### 🔧 Fixes
+### 🔧 修复
 
-- Windows portable zip structure: exe inside `SecureVault/` folder with versioned name
-- Portable zip/exe naming: removed `v` prefix to match Tauri bundler convention
-- Backup export `version` field now auto-follows `tauri.conf.json` app version
-- `tsconfig.json` excludes `src-tauri/` build artifacts
+- Windows 便携包结构：exe 置于 `SecureVault/` 目录内并使用带版本号的文件名
+- 便携包 zip/exe 命名：移除 `v` 前缀以对齐 Tauri 打包器约定
+- 备份导出的 `version` 字段自动跟随 `tauri.conf.json` 应用版本
+- `tsconfig.json` 排除 `src-tauri/` 构建产物
 
-### 🔨 Improvements
+### ✨ 改进
 
-- Backup JSON now includes `kdf` field for KDF identification
-- Extension popup light theme, consistent with desktop LockScreen
-- Browser Extension Hub layout compacted to fit default window without scrolling
-- Extension popup spacing refinement, search debounce fix, non-standard domain filtering
+- 备份 JSON 新增 `kdf` 字段用于标识 KDF
+- 扩展弹窗浅色主题，与桌面端 LockScreen 一致
+- 浏览器扩展中心布局紧凑化，默认窗口内无需滚动
+- 扩展弹窗间距优化、搜索防抖修复、非标准域名过滤
 
 ---
 
 ## v1.0.0 (2026-07-23)
 
-## v1.0.0 (2026-07-23)
+### 🎉 首次发布
 
-### 🎉 Initial Release
-
-- **Vault Core** — Login / Card / Note / Identity credential management
-- **Dual KDF** — Argon2id (64MB) & PBKDF2-SHA256 (100K iter)
-- **AES-256-GCM** — Authenticated encryption with random nonce
-- **Atomic File I/O** — Write-to-temp + rename for data safety
-- **SHA-256 Checksum** — Backup integrity verification
-- **Security Audit** — Weak password detection, reuse collision, compromised matching
-- **Password Generator** — Random mode + BIP39 passphrase (2048 words)
-- **Encrypted Backup** — Export/import with auto-decrypt
-- **Auto-Lock** — Configurable idle timeout with memory wipe
-- **Clipboard Protection** — Auto-clear after copy
-- **Startup Splash** — Smooth animated transition to lock screen
-- **Password Visibility Toggle** — Custom Eye button on all password fields
-- **Custom Folder Dropdown** — Replaces native select with styled dropdown
-- **Cross-Platform** — Windows, macOS, Linux via Tauri v2
-- **CI/CD** — GitHub Actions auto-build on version tags
+- **保险箱核心** — 登录账号 / 虚拟卡券 / 安全备忘 / 密保资料 凭证管理
+- **双 KDF** — Argon2id（64MB）与 PBKDF2-SHA256（10 万次迭代）
+- **AES-256-GCM** — 随机 Nonce 认证加密
+- **原子文件写入** — 临时文件 + 重命名，防止数据损坏
+- **SHA-256 校验和** — 备份完整性验证
+- **安全审计** — 弱密码检测、复用碰撞、泄露匹配
+- **密码生成器** — 随机模式 + BIP39 助记词（2048 词库）
+- **加密备份** — 导出/导入自动解密
+- **自动锁定** — 可配置空闲超时，锁定时擦除内存
+- **剪贴板保护** — 复制后自动清除
+- **启动动画** — 平滑过渡到锁定界面
+- **密码可见性切换** — 所有密码字段内置 Eye 按钮
+- **自定义文件夹下拉** — 替代原生 select 的样式化下拉
+- **跨平台** — 基于 Tauri v2 支持 Windows / macOS / Linux
+- **CI/CD** — GitHub Actions 版本标签自动构建

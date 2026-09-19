@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.2-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.3-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -184,6 +184,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.5.3` | 2026-09-19 | Session-persistent extension unlock, Chinese docs |
 | `v1.5.2` | 2026-09-16 | TOTP 80-bit key support, macOS universal binary |
 | `v1.5.1` | 2026-09-10 | TOTP fixes, KDBX field mapping fixes, expiry semantics |
 | `v1.5.0` | 2026-08-27 | TOTP 2FA codes, custom fields, expiry reminders |

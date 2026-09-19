@@ -78,25 +78,33 @@ export async function generateExtensionZip(
   // 3. 内联 hash-wasm 库（编译时内嵌，扩展端 Argon2id 解密需要）
   zip.file("lib/hash-wasm.js", hashWasmBundle);
 
-  // 4. background.js — 内存驻留 + 15分钟自动锁定
+  // 4. background.js — 会话级内存存储（浏览器关闭即自动清除）
+  //    使用 chrome.storage.session 而非普通变量：MV3 Service Worker 会在约 30 秒空闲后休眠，
+  //    普通变量随 SW 终止而丢失（导致每次填充都要重新输主密码）；
+  //    storage.session 是内存级存储（不落磁盘），跨 SW 生命周期存活，浏览器关闭自动清空
   const backgroundJs = [
     '// SecureVault Manifest V3 Background Service Worker',
     'console.log("[SecureVault Background Worker] Initialized.");',
     '',
-    'let unlockedVaultData = null;',
-    'let autoLockTimer = null;',
+    '// 会话级解锁数据键名（存于 chrome.storage.session：内存、不落盘、浏览器关闭即清空）',
+    'const SESSION_KEY = "sv_unlocked_vault";',
     '',
     'chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {',
     '  if (request.action === "GET_UNLOCKED_DATA") {',
-    '    sendResponse({ success: true, vault: unlockedVaultData });',
+    '    chrome.storage.session.get(SESSION_KEY, (res) => {',
+    '      sendResponse({ success: true, vault: res[SESSION_KEY] || null });',
+    '    });',
+    '    return true; // 异步响应，保持消息通道',
     '  } else if (request.action === "SET_UNLOCKED_DATA") {',
-    '    unlockedVaultData = request.vault;',
-    '    resetAutoLockTimer();',
-    '    sendResponse({ success: true });',
+    '    chrome.storage.session.set({ [SESSION_KEY]: request.vault }, () => {',
+    '      sendResponse({ success: true });',
+    '    });',
+    '    return true;',
     '  } else if (request.action === "LOCK_VAULT") {',
-    '    unlockedVaultData = null;',
-    '    if (autoLockTimer) clearTimeout(autoLockTimer);',
-    '    sendResponse({ success: true });',
+    '    chrome.storage.session.remove(SESSION_KEY, () => {',
+    '      sendResponse({ success: true });',
+    '    });',
+    '    return true;',
     '  } else if (request.action === "AUTOFILL_CREDENTIALS") {',
     '    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {',
     '      if (tabs && tabs[0] && tabs[0].id) {',
@@ -111,15 +119,7 @@ export async function generateExtensionZip(
     '    });',
     '    return true;',
     '  }',
-    '});',
-    '',
-    'function resetAutoLockTimer() {',
-    '  if (autoLockTimer) clearTimeout(autoLockTimer);',
-    '  autoLockTimer = setTimeout(() => {',
-    '    unlockedVaultData = null;',
-    '    console.log("[SecureVault] Memory session auto-locked due to 15min timeout.");',
-    '  }, 15 * 60 * 1000);',
-    '}'
+    '});'
   ].join('\n');
   zip.file("background.js", backgroundJs);
 
@@ -533,7 +533,8 @@ export async function generateExtensionZip(
 
 - 扩展内嵌由 SecureVault 桌面应用导出的 AES-256-GCM 加密备份
 - 解锁时通过 Web Crypto API 在本地执行 PBKDF2 密钥派生 + AES-GCM 解密
-- 解锁后 15 分钟无操作自动锁定并清空内存
+- 解锁后密钥仅保存在浏览器**会话内存**中（不落磁盘），关闭浏览器自动清除
+- 时间紧张时也可随时点击「锁定」按钮手动清除
 - 无任何网络请求，100% 本地运行
 
 > 如需更换凭证数据，请在桌面应用中重新导出备份并重新打包扩展。

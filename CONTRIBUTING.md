@@ -1,47 +1,48 @@
-# Contributing to SecureVault
+# 参与贡献
 
-Thank you for your interest in contributing! 🎉
+感谢你有兴趣为 SecureVault 贡献力量！🎉
 
-## Getting Started
+## 开始之前
 
-1. Fork the repository
-2. Clone your fork:
+1. Fork 本仓库
+2. 克隆你的 Fork：
    ```bash
-   git clone https://github.com/YOUR_USERNAME/SecureVault-Desktop.git
+   git clone https://github.com/YOUR_USERNAME/SecureVault.git
    ```
-3. Install dependencies:
+3. 安装依赖：
    ```bash
    npm install
    ```
-4. Start Tauri dev mode:
+4. 启动 Tauri 开发模式：
    ```bash
    npm run tauri dev
    ```
 
-## Development Workflow
+## 开发环境
 
-- **Frontend**: React 19 + TypeScript + Tailwind CSS v4
-- **Backend**: Rust (src-tauri/src/main.rs)
-- Run type checks before committing: `npm run typecheck`
-- Rust checks: `cd src-tauri && cargo check`
+- **前端**：React 19 + TypeScript + Tailwind CSS v4
+- **后端**：Rust（src-tauri/src/main.rs）
+- 提交前运行类型检查：`npm run typecheck`
+- Rust 检查：`cd src-tauri && cargo check`
+- Rust 单元测试：`cd src-tauri && cargo test`
 
-## Commit Convention
+## 提交规范
 
-- `feat:` — new feature
-- `fix:` — bug fix
-- `docs:` — documentation
-- `refactor:` — code restructuring
-- `style:` — UI/formatting changes
-- `chore:` — build/tooling
+- `feat:` — 新功能
+- `fix:` — 缺陷修复
+- `docs:` — 文档
+- `refactor:` — 代码重构
+- `style:` — 界面/格式调整
+- `chore:` — 构建/工具链
 
-## Pull Request Process
+## Pull Request 流程
 
-1. Create a feature branch from `main`
-2. Make your changes
-3. Test locally with `npm run tauri dev`
-4. Ensure `npm run typecheck` passes
-5. Open a PR with a clear description
+1. 从 `main` 创建功能分支
+2. 完成你的改动
+3. 本地测试：`npm run tauri dev`
+4. 确保 `npm run typecheck` 通过
+5. 提交 PR 并附上清晰的说明
 
-## Questions?
+## 有疑问？
 
-Feel free to open an Issue for discussion.
+欢迎开 Issue 讨论。

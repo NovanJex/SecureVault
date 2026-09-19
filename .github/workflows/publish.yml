@@ -76,16 +76,9 @@ jobs:
         with:
           tagName: v__VERSION__
           releaseName: 'SecureVault v__VERSION__'
+          # 占位文案：全部平台构建完成后由 update-release-notes job 从 CHANGELOG 自动填充
           releaseBody: |
-            🔐 **SecureVault** — 纯本地零知识跨平台桌面密码管理器。Argon2id/PBKDF2 + AES-256-GCM 加密，数据 100% 本地存储不联网。
-
-            ### 功能亮点
-            - 浏览器密码一键导入（Chrome/Edge/Firefox/Safari/1Password/LastPass/Bitwarden）
-            - 一键打包 Manifest V3 浏览器扩展（离线解密 + 域名匹配 + 自动填充）
-            - 修改主密码 / 切换 KDF 加密算法
-            - 安全审计、密码生成器、加密备份导出/导入
-
-            > 详细更新日志见 [CHANGELOG.md](https://github.com/NovanJex/SecureVault/blob/main/CHANGELOG.md)
+            > ⏳ 构建产物上传中，说明将在全部平台构建完成后自动填充。
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
@@ -196,3 +189,52 @@ jobs:
           gh release delete-asset "$VERSION" "SecureVault_${VER}_amd64.AppImage" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 AppImage 不存在或已删除"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 全部平台构建完成后，从 CHANGELOG.md 提取当前版本段落自动填充 Release 说明
+  # （避免每次都手动复制粘贴版本说明）
+  update-release-notes:
+    needs: publish-tauri
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Extract version section from CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME}"   # 如 v1.5.2
+          VER="${VERSION#v}"             # 如 1.5.2
+          # 提取 "## vX.X.X (...)" 标题行开始、到下一个 "---" 之前的段落
+          # 用字段比较（$2 == "v1.5.2"）而非正则，避免括号转义兼容问题
+          awk -v ver="$VER" '
+            $1 == "##" && $2 == "v" ver {found=1; next}
+            found && $0 == "---" {exit}
+            found {print}
+          ' CHANGELOG.md > notes.md
+
+          if [ ! -s notes.md ]; then
+            echo "⚠️ CHANGELOG 中未找到 v${VER} 段落，保留草稿原有说明"
+            rm -f notes.md
+            exit 0
+          fi
+
+          # 追加平台安装提示（固定内容，不写进 CHANGELOG）
+          cat >> notes.md <<'EOF'
+
+          > 🍎 macOS 提示：如打开时提示"已损坏"，终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开即可
+          >
+          > 🐧 Linux 提示：老系统 (Ubuntu 20.04-) 需 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统缺少 libfuse2 用 `./SecureVault_amd64.AppImage --appimage-extract-and-run`
+          EOF
+
+          echo "--- 生成的 Release 说明 ---"
+          cat notes.md
+
+      - name: Update release draft notes
+        if: hashFiles('notes.md') != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "${{ github.ref_name }}" --notes-file notes.md --repo ${{ github.repository }}
+          echo "✅ Release 草稿说明已更新"

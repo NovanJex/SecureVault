@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.2-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.3-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -182,6 +182,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.5.3` | 2026-09-19 | 浏览器扩展会话级免输入解锁、文档中文化 |
 | `v1.5.2` | 2026-09-16 | TOTP 80-bit 密钥支持、macOS 通用二进制 |
 | `v1.5.1` | 2026-09-10 | TOTP 功能修复、KDBX 字段映射修复、到期语义统一 |
 | `v1.5.0` | 2026-08-27 | TOTP 两步验证码、自定义字段、到期提醒 |
