@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## v1.5.4 (2026-10-08)
+
+### 🔧 修复
+
+**Linux AppImage**
+- 修复 AppImage 在 Firejail 等沙箱环境下无法启动的问题（内部 `AppRun.wrapped` 缺少执行权限，报 "Permission denied"）
+
+### ✨ 改进
+
+- Linux AppImage 命名调整为 `SecureVault-X.X.X-x86_64.AppImage`，符合 AppImage 生态命名规范（便于收录至 AppImageHub 应用目录）
+
+---
+
 ## v1.5.3 (2026-09-19)
 
 ### ✨ 改进
@@ -16,6 +29,8 @@ All notable changes to this project will be documented in this file.
 **文档与工程**
 - CHANGELOG / CONTRIBUTING 文档统一为中文
 - CI 构建完成后自动生成 Release 说明
+
+> ⚠️ 已安装旧版扩展的用户：请在桌面端「浏览器插件包」中重新打包扩展并重新加载，以启用新的免输入解锁机制
 
 ---
 

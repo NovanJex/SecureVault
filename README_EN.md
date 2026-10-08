@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.3-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.4-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -35,13 +35,13 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 | --- | --- | --- |
 | Windows | `SecureVault_vX.X.X_Windows_x64-setup.exe` | `SecureVault_vX.X.X_Windows_Portable.zip` (extract and run) |
 | macOS | `SecureVault_vX.X.X_macOS_universal.dmg` (Intel + Apple Silicon) | Drag to Applications |
-| Linux | `SecureVault_vX.X.X_Linux_amd64.AppImage` | `chmod +x` and run |
+| Linux | `SecureVault-X.X.X-x86_64.AppImage` | `chmod +x` and run |
 
 > 📦 Additional formats: Windows also ships `_Windows_x64_zh-CN.msi`; Linux also provides `.deb` and `.rpm` packages (names without the `v` prefix).
 
 > 🍎 **macOS tip**: If you see "app is damaged", run `xattr -cr /Applications/SecureVault.app` in Terminal and reopen.
 >
-> 🐧 **Linux tip**: Older distros (Ubuntu 20.04-): `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`. Newer distros (Ubuntu 24.04+) missing libfuse2: run `./SecureVault_amd64.AppImage --appimage-extract-and-run`.
+> 🐧 **Linux tip**: Older distros (Ubuntu 20.04-): `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`. Newer distros (Ubuntu 24.04+) missing libfuse2: run `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run`.
 >
 > 🟢 **Portable**: Extract the ZIP, open the `SecureVault` folder, and run `SecureVault_X.X.X_Windows.exe` directly — no installation required.
 
@@ -184,6 +184,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.5.4` | 2026-10-08 | Linux AppImage sandbox fix, naming convention |
 | `v1.5.3` | 2026-09-19 | Session-persistent extension unlock, Chinese docs |
 | `v1.5.2` | 2026-09-16 | TOTP 80-bit key support, macOS universal binary |
 | `v1.5.1` | 2026-09-10 | TOTP fixes, KDBX field mapping fixes, expiry semantics |

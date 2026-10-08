@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.3-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.5.4-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -35,13 +35,13 @@
 | --- | --- | --- |
 | Windows | `SecureVault_vX.X.X_Windows_x64-setup.exe` | `SecureVault_vX.X.X_Windows_Portable.zip`（解压即用） |
 | macOS | `SecureVault_vX.X.X_macOS_universal.dmg`（Intel + M 系列通用） | 拖入 Applications 即可 |
-| Linux | `SecureVault_vX.X.X_Linux_amd64.AppImage` | `chmod +x` 后直接运行 |
+| Linux | `SecureVault-X.X.X-x86_64.AppImage` | `chmod +x` 后直接运行 |
 
 > 📦 附加格式：Windows 提供 `_Windows_x64_zh-CN.msi`（MSI 安装器）；Linux 提供 `.deb` 与 `.rpm` 包（文件名不含 `v` 前缀）。
 
 > 🍎 **macOS 提示**：如打开时提示"已损坏"，在终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开即可。
 >
-> 🐧 **Linux 提示**：老系统 (Ubuntu 20.04-) 需执行 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统 (Ubuntu 24.04+) 如缺少 libfuse2，运行 `./SecureVault_amd64.AppImage --appimage-extract-and-run` 即可。
+> 🐧 **Linux 提示**：老系统 (Ubuntu 20.04-) 需执行 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统 (Ubuntu 24.04+) 如缺少 libfuse2，运行 `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run` 即可。
 
 ---
 
@@ -182,6 +182,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.5.4` | 2026-10-08 | Linux AppImage 沙箱兼容修复、命名规范化 |
 | `v1.5.3` | 2026-09-19 | 浏览器扩展会话级免输入解锁、文档中文化 |
 | `v1.5.2` | 2026-09-16 | TOTP 80-bit 密钥支持、macOS 通用二进制 |
 | `v1.5.1` | 2026-09-10 | TOTP 功能修复、KDBX 字段映射修复、到期语义统一 |

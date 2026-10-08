@@ -176,17 +176,54 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Rename & upload Linux artifact
+      - name: Fix AppImage permissions, repackage & upload (Linux)
         if: matrix.platform == 'ubuntu-22.04'
         shell: bash
         run: |
           VERSION="${{ github.ref_name }}"
           VER="${VERSION#v}"
-          cp "src-tauri/target/release/bundle/appimage/SecureVault_${VER}_amd64.AppImage" "SecureVault_${VERSION}_Linux_amd64.AppImage"
-          gh release upload "$VERSION" "SecureVault_${VERSION}_Linux_amd64.AppImage" --repo ${{ github.repository }} --clobber
+          SRC="src-tauri/target/release/bundle/appimage/SecureVault_${VER}_amd64.AppImage"
 
-          # 删除原始命名 AppImage（保留重命名版；deb/rpm 无重命名版，保留）
-          gh release delete-asset "$VERSION" "SecureVault_${VER}_amd64.AppImage" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 AppImage 不存在或已删除"
+          # ── 1. 解包原始 AppImage ──────────────────────────────────────────
+          # --appimage-extract 由 runtime 内置实现，无需 FUSE
+          chmod +x "$SRC"
+          "$SRC" --appimage-extract >/dev/null
+          echo "📦 已解包，检查 AppRun 系列文件原始权限："
+          ls -l squashfs-root/AppRun* 2>/dev/null || echo "（无 AppRun 文件）"
+
+          # ── 2. 修复可执行权限 ────────────────────────────────────────────
+          # Tauri/linuxdeploy 打包时可能丢失 AppRun.wrapped 的执行位，
+          # 导致 Firejail 等沙箱下报 "AppRun.wrapped: Permission denied" 而无法启动
+          chmod a+x squashfs-root/AppRun
+          [ -f squashfs-root/AppRun.wrapped ] && chmod a+x squashfs-root/AppRun.wrapped || true
+
+          # ── 3. 用官方 appimagetool 重打包（命名遵循 AppImageHub 规范）────
+          wget -q -O appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+          OUT="SecureVault-${VER}-x86_64.AppImage"
+          # APPIMAGE_EXTRACT_AND_RUN=1 让 appimagetool 在无 FUSE 的 CI 环境运行
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool squashfs-root "$OUT"
+
+          # ── 4. 自检：重新解包验证权限（失败则中止构建，防止发布坏产物）──
+          rm -rf squashfs-root
+          chmod +x "$OUT"
+          "$OUT" --appimage-extract >/dev/null
+          echo "🔍 重打包产物权限自检："
+          ls -l squashfs-root/AppRun*
+          for f in squashfs-root/AppRun squashfs-root/AppRun.wrapped; do
+            if [ -e "$f" ] && [ ! -x "$f" ]; then
+              echo "❌ 自检失败：$f 不可执行"
+              exit 1
+            fi
+          done
+          echo "✅ AppRun 权限验证通过"
+
+          # ── 5. 上传到 Release ────────────────────────────────────────────
+          gh release upload "$VERSION" "$OUT" --repo ${{ github.repository }} --clobber
+
+          # 清理旧命名的 AppImage 资产（含前版本的命名与原始名）
+          gh release delete-asset "$VERSION" "SecureVault_${VERSION}_Linux_amd64.AppImage" --repo ${{ github.repository }} --yes || true
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_amd64.AppImage" --repo ${{ github.repository }} --yes || echo "⚠️ 原始命名 AppImage 不存在或已删除"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
