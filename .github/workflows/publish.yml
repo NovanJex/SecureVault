@@ -205,12 +205,39 @@ jobs:
           stat -c '%a  %n' squashfs-root/AppRun
           [ -f squashfs-root/AppRun.wrapped ] && stat -c '%a  %n' squashfs-root/AppRun.wrapped || true
 
-          # ── 3. 用官方 appimagetool 重打包（命名遵循 AppImageHub 规范）────
-          wget -q -O appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
-          chmod +x appimagetool
+          # ── 3. 手动打包 ★关键★ ──────────────────────────────────────────
+          # 不用 appimagetool：它内部把 AppDir 复制到 mktemp 创建的 0700 临时目录
+          # 后再打包，导致产物根目录恒为 0700 —— Firejail 以非 owner 身份无法
+          # 遍历根目录，报 "AppRun: Permission denied"。
+          # （实证：解析 squashfs inode 对比 —— 原包根目录 0755 / appimagetool
+          #   重打包 0700）
+          # 手动 mksquashfs 直接读取文件系统权限（chmod 后的 755），无复制环节。
+
+          # 3a. 从原始包提取 runtime（复用原装 runtime，保证与上游一致）
+          OFFSET=$(python3 -c "
+          data = open('$SRC', 'rb').read()
+          pos = 0
+          while True:
+              pos = data.find(b'hsqs', pos)
+              if pos < 0: raise SystemExit('squashfs magic not found')
+              bs = int.from_bytes(data[pos+12:pos+16], 'little')
+              ic = int.from_bytes(data[pos+4:pos+8], 'little')
+              if 4096 <= bs <= 1048576 and (bs & (bs - 1)) == 0 and 0 < ic < 10000000:
+                  print(pos); break
+              pos += 4
+          ")
+          head -c "$OFFSET" "$SRC" > runtime.bin
+          echo "📦 提取 runtime: $OFFSET bytes（原包 squashfs 偏移）"
+
+          # 3b. 手动打包 squashfs（参数与原始包一致：zstd / 128KB 块 / root 属主）
+          mksquashfs squashfs-root squashfs.img -all-root -noappend -comp zstd -b 131072 -no-progress
+
+          # 3c. 拼接：AppImage = runtime + squashfs
           OUT="SecureVault-${VER}-x86_64.AppImage"
-          # APPIMAGE_EXTRACT_AND_RUN=1 让 appimagetool 在无 FUSE 的 CI 环境运行
-          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool squashfs-root "$OUT"
+          cat runtime.bin squashfs.img > "$OUT"
+          chmod +x "$OUT"
+          rm -f runtime.bin squashfs.img
+          echo "✅ 手动打包完成: $OUT ($(stat -c '%s' "$OUT") bytes)"
 
           # ── 4. 自检：重新解包验证权限（失败则中止构建，防止发布坏产物）──
           rm -rf squashfs-root
