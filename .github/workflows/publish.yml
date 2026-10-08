@@ -192,10 +192,11 @@ jobs:
           ls -l squashfs-root/AppRun* 2>/dev/null || echo "（无 AppRun 文件）"
 
           # ── 2. 修复可执行权限 ────────────────────────────────────────────
-          # Tauri/linuxdeploy 打包时可能丢失 AppRun.wrapped 的执行位，
-          # 导致 Firejail 等沙箱下报 "AppRun.wrapped: Permission denied" 而无法启动
-          chmod a+x squashfs-root/AppRun
-          [ -f squashfs-root/AppRun.wrapped ] && chmod a+x squashfs-root/AppRun.wrapped || true
+          # Tauri/linuxdeploy 打包后 AppRun.wrapped 权限为 770（other 无执行位），
+          # 导致 Firejail 等沙箱下报 "AppRun.wrapped: Permission denied" 而无法启动。
+          # 统一设为 755（所有用户可执行，标准权限）
+          chmod 755 squashfs-root/AppRun
+          [ -f squashfs-root/AppRun.wrapped ] && chmod 755 squashfs-root/AppRun.wrapped || true
 
           # ── 3. 用官方 appimagetool 重打包（命名遵循 AppImageHub 规范）────
           wget -q -O appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
@@ -207,16 +208,22 @@ jobs:
           # ── 4. 自检：重新解包验证权限（失败则中止构建，防止发布坏产物）──
           rm -rf squashfs-root
           chmod +x "$OUT"
-          "$OUT" --appimage-extract >/dev/null
+          "./$OUT" --appimage-extract >/dev/null   # 注意 ./ 前缀：纯文件名不走 PATH 查找
           echo "🔍 重打包产物权限自检："
           ls -l squashfs-root/AppRun*
           for f in squashfs-root/AppRun squashfs-root/AppRun.wrapped; do
-            if [ -e "$f" ] && [ ! -x "$f" ]; then
-              echo "❌ 自检失败：$f 不可执行"
+            [ -e "$f" ] || continue
+            perm=$(stat -c '%a' "$f")
+            # 关键：必须检查 other 执行位（原 770 权限 owner 可执行但 other 不行，
+            # Firejail 以不同权限上下文运行 → 报 Permission denied）
+            other=$(( 10#$perm % 10 ))
+            if [ $(( other & 1 )) -eq 0 ]; then
+              echo "❌ 自检失败：$f 权限 $perm（other 无执行位，沙箱下将无法启动）"
               exit 1
             fi
+            echo "  ✓ $f 权限 $perm"
           done
-          echo "✅ AppRun 权限验证通过"
+          echo "✅ AppRun 权限验证通过（所有用户可执行）"
 
           # ── 5. 上传到 Release ────────────────────────────────────────────
           gh release upload "$VERSION" "$OUT" --repo ${{ github.repository }} --clobber
