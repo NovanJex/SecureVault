@@ -1,6 +1,6 @@
 {
   "productName": "SecureVault",
-  "version": "1.5.4",
+  "version": "1.5.5",
   "identifier": "com.securevault.desktop",
   "build": {
     "beforeDevCommand": "npm run tauri:dev",
