@@ -25,6 +25,7 @@ import { getVersion } from '@tauri-apps/api/app';
 import { invoke } from '@tauri-apps/api/core';
 import { VaultItem } from "../types";
 import { generateExtensionZip } from "../utils/extensionGenerator";
+import { t, tf } from "../i18n";
 
 interface BrowserExtensionHubProps {
   vaultItems: VaultItem[];
@@ -78,16 +79,16 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
       const base64 = await blobToBase64(blob);
 
       const filePath = await save({
-        filters: [{ name: '浏览器扩展', extensions: ['zip'] }],
+        filters: [{ name: t('浏览器扩展'), extensions: ['zip'] }],
         defaultPath: 'SecureVault_Browser_Extension.zip',
       });
       if (!filePath) { setIsGeneratingZip(false); return; }
 
       await invoke('write_binary_file', { path: filePath, dataB64: base64 });
-      showToast("📦 已成功生成并打包下载 Manifest V3 扩展 ZIP 包！");
+      showToast(t("📦 已成功生成并打包下载 Manifest V3 扩展 ZIP 包！"));
     } catch (err) {
       console.error("生成扩展失败:", err);
-      showToast("❌ 生成扩展压缩包失败，请重试！");
+      showToast(t("❌ 生成扩展压缩包失败，请重试！"));
     } finally {
       setIsGeneratingZip(false);
     }
@@ -98,15 +99,15 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
     try {
       const payload = await getEncryptedPayload();
       if (!payload) {
-        showToast("⚠️ 保险箱未解锁，无法获取加密同步数据");
+        showToast(t("⚠️ 保险箱未解锁，无法获取加密同步数据"));
         return;
       }
       await writeText(payload);
       setCopiedSyncText(true);
-      showToast("📋 已复制扩展同步数据密文，可在扩展中粘贴一键同步！");
+      showToast(t("📋 已复制扩展同步数据密文，可在扩展中粘贴一键同步！"));
       setTimeout(() => setCopiedSyncText(false), 2000);
     } catch {
-      showToast("⚠️ 剪贴板访问失败");
+      showToast(t("⚠️ 剪贴板访问失败"));
     }
   };
 
@@ -135,15 +136,15 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
           <div className="space-y-1 max-w-2xl">
             <div className="inline-flex items-center space-x-2 bg-indigo-500/20 border border-indigo-400/30 rounded-full px-2.5 py-0.5 text-[10px] font-mono text-indigo-300">
               <Sparkles className="w-3 h-3 text-indigo-400 animate-pulse" />
-              <span>Manifest V3 零知识无痕自动填充架构</span>
+              <span>{t("Manifest V3 零知识无痕自动填充架构")}</span>
             </div>
 
             <h1 className="text-base md:text-lg font-bold tracking-tight text-white font-sans">
-              SecureVault 跨浏览器扩展程序
+              {t("SecureVault 跨浏览器扩展程序")}
             </h1>
 
             <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
-              打包生成的扩展内嵌桌面端加密备份数据，无需打开 Web 主应用。安装后输入主密码，通过轻量级扩展即可离线解锁、一键填充凭证。支持 Argon2id / PBKDF2 双 KDF 本地零知识解密，解锁一次即可在整个浏览器会话中免输入（关闭浏览器自动清除），数据绝不联网、绝不上传。
+              {t("打包生成的扩展内嵌桌面端加密备份数据，无需打开 Web 主应用。安装后输入主密码，通过轻量级扩展即可离线解锁、一键填充凭证。支持 Argon2id / PBKDF2 双 KDF 本地零知识解密，解锁一次即可在整个浏览器会话中免输入（关闭浏览器自动清除），数据绝不联网、绝不上传。")}
             </p>
 
           </div>
@@ -158,12 +159,12 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
               {isGeneratingZip ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>正在打包生成扩展...</span>
+                  <span>{t("正在打包生成扩展...")}</span>
                 </>
               ) : (
                 <>
                   <Download className="w-3.5 h-3.5" />
-                  <span>打包下载浏览器扩展 (.zip)</span>
+                  <span>{t("打包下载浏览器扩展 (.zip)")}</span>
                 </>
               )}
             </button>
@@ -173,7 +174,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
               className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center space-x-2"
             >
               {copiedSyncText ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-400" />}
-              <span>{copiedSyncText ? "密文已复制" : "复制扩展同步密文"}</span>
+              <span>{copiedSyncText ? t("密文已复制") : t("复制扩展同步密文")}</span>
             </button>
           </div>
         </div>
@@ -190,8 +191,8 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                 <Zap className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs md:text-sm font-bold text-slate-800">扩展交互在线模拟器</h3>
-                <p className="text-[10px] text-slate-400">实时体验扩展 Popup 的域名精准匹配与无痕自动填充效果</p>
+                <h3 className="text-xs md:text-sm font-bold text-slate-800">{t("扩展交互在线模拟器")}</h3>
+                <p className="text-[10px] text-slate-400">{t("实时体验扩展 Popup 的域名精准匹配与无痕自动填充效果")}</p>
               </div>
             </div>
             <span className="text-[10px] font-mono bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded font-semibold">
@@ -207,10 +208,10 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
               type="text"
               value={simDomain}
               onChange={(e) => setSimDomain(e.target.value)}
-              placeholder="测试网址, 如 github.com, google.com"
+              placeholder={t("测试网址, 如 github.com, google.com")}
               className="flex-1 bg-white border border-slate-200/80 rounded-lg px-2 py-0.5 text-xs outline-none focus:border-indigo-500 font-mono text-slate-700 font-bold"
             />
-            <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-mono font-medium">当前网页</span>
+            <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded font-mono font-medium">{t("当前网页")}</span>
           </div>
 
           {/* 模拟扩展 Popup 窗口 */}
@@ -229,7 +230,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                     onClick={() => setSimUnlocked(false)}
                     className="text-[10px] text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-100 px-2 py-0.5 rounded border border-slate-200 font-medium transition-colors cursor-pointer"
                   >
-                    锁定
+                    {t("锁定")}
                   </button>
                 )}
               </div>
@@ -242,25 +243,25 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                       <Lock className="w-5 h-5 animate-pulse" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-slate-800">解密 SecureVault 保险箱</h4>
-                      <p className="text-[10px] text-slate-400 mt-0.5">本地派生解密凭证数据</p>
+                      <h4 className="text-xs font-bold text-slate-800">{t("解密 SecureVault 保险箱")}</h4>
+                      <p className="text-[10px] text-slate-400 mt-0.5">{t("本地派生解密凭证数据")}</p>
                     </div>
                     <div className="space-y-1.5 pt-1">
                       <input
                         type="password"
                         value={simMasterPass}
                         onChange={(e) => setSimMasterPass(e.target.value)}
-                        placeholder="输入主解密密码..."
+                        placeholder={t("输入主解密密码...")}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-500 focus:bg-white"
                       />
                       <button
                         onClick={() => {
-                          if (!simMasterPass) { showToast("⚠️ 请输入模拟密码！"); return; }
+                          if (!simMasterPass) { showToast(t("⚠️ 请输入模拟密码！")); return; }
                           setSimUnlocked(true);
                         }}
                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 rounded-lg text-xs transition-colors cursor-pointer shadow-sm"
                       >
-                        解锁扩展保险箱
+                        {t("解锁扩展保险箱")}
                       </button>
                     </div>
                   </div>
@@ -269,7 +270,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                     {/* 域名匹配区 */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">📍 当前域名匹配</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t("📍 当前域名匹配")}</span>
                         <span className="text-[9px] bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded font-mono font-bold">
                           {simDomain}
                         </span>
@@ -282,28 +283,28 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                                 <span className="text-xs font-bold text-slate-800">{item.title}</span>
                                 <span className="text-[9px] text-slate-400 font-mono truncate max-w-[110px]">{item.url}</span>
                               </div>
-                              <div className="text-[10px] text-slate-600 font-mono">{item.username || "未设定账号"}</div>
+                              <div className="text-[10px] text-slate-600 font-mono">{item.username || t("未设定账号")}</div>
                               <div className="flex space-x-1.5 pt-0.5">
                                 <button
                                   onClick={() => {
-                                    setSimFillSuccess(`✨ 已成功将 ${item.title} 的账号密码填入页面！`);
+                                    setSimFillSuccess(tf.simFillSuccess(item.title));
                                     setTimeout(() => setSimFillSuccess(null), 3000);
-                                    showToast(`✅ 模拟填充成功：${item.title}`);
+                                    showToast(tf.simFillToast(item.title));
                                   }}
                                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer flex items-center justify-center space-x-1 shadow-sm"
                                 >
                                   <MousePointerClick className="w-3 h-3" />
-                                  <span>一键填充</span>
+                                  <span>{t("一键填充")}</span>
                                 </button>
                                 <button
                                   onClick={() => {
                                     writeText(item.password || "").then(() =>
-                                      showToast("🔑 模拟复制密码成功！")
+                                      showToast(t("🔑 模拟复制密码成功！"))
                                     ).catch(() => {});
                                   }}
                                   className="bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold py-1 px-2 rounded transition-colors cursor-pointer shadow-sm"
                                 >
-                                  复制密码
+                                  {t("复制密码")}
                                 </button>
                               </div>
                             </div>
@@ -311,7 +312,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                         </div>
                       ) : (
                         <div className="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-200 border-dashed text-center font-medium">
-                          未在该域名检测到已匹配的常规凭证
+                          {t("未在该域名检测到已匹配的常规凭证")}
                         </div>
                       )}
                     </div>
@@ -322,7 +323,7 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                         type="text"
                         value={simSearchQuery}
                         onChange={(e) => setSimSearchQuery(e.target.value)}
-                        placeholder="🔍 检索所有账号..."
+                        placeholder={t("🔍 检索所有账号...")}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-[10px] text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-500 focus:bg-white"
                       />
                     </div>
@@ -332,16 +333,16 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
                         <div key={item.id} className="bg-slate-50 border border-slate-200/80 rounded-lg p-1.5 flex items-center justify-between">
                           <div className="min-w-0 pr-2">
                             <p className="text-[10px] font-bold text-slate-800 truncate">{item.title}</p>
-                            <p className="text-[9px] text-slate-500 font-mono truncate">{item.username || "未设定账号"}</p>
+                            <p className="text-[9px] text-slate-500 font-mono truncate">{item.username || t("未设定账号")}</p>
                           </div>
                           <button
                             onClick={() => {
-                              setSimFillSuccess(`✨ 已成功填入 ${item.title}！`);
+                              setSimFillSuccess(tf.simFill(item.title));
                               setTimeout(() => setSimFillSuccess(null), 3000);
                             }}
                             className="bg-white hover:bg-indigo-50 text-indigo-600 border border-slate-200 hover:border-indigo-200 text-[9px] px-1.5 py-0.5 rounded font-bold transition-colors cursor-pointer shrink-0 shadow-sm"
                           >
-                            填充
+                            {t("填充")}
                           </button>
                         </div>
                       ))}
@@ -373,15 +374,15 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
           <div className="space-y-1.5 flex-1 flex flex-col">
             <h3 className="text-xs md:text-sm font-bold text-slate-800 flex items-center space-x-2 border-b border-slate-100 pb-1.5">
               <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              <span>Manifest V3 架构四大核心优势</span>
+              <span>{t("Manifest V3 架构四大核心优势")}</span>
             </h3>
 
             <div className="grid grid-cols-1 gap-1.5 flex-1 pt-0.5">
               {[
-                { title: "零知识本地派生", desc: "主密码仅在扩展内存参与 PBKDF2 解密 + AES-GCM，数据不上报任何服务器。", icon: KeyRound, color: "text-indigo-600 bg-indigo-50 border-indigo-100" },
-                { title: "智能域名精准匹配", desc: "自动获取当前标签页主域名，优先呈现该站点的关联凭证。", icon: Globe, color: "text-blue-600 bg-blue-50 border-blue-100" },
-                { title: "防窃听无痕填充", desc: "通过 Content Script 沙箱隔离注入，有效隔离恶意页面 DOM 侦听。", icon: Zap, color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
-                { title: "会话级免输入解锁", desc: "解锁一次，浏览器会话内填充无需再输主密码；关闭浏览器自动清除内存密钥。", icon: Lock, color: "text-purple-600 bg-purple-50 border-purple-100" }
+                { title: t("零知识本地派生"), desc: t("主密码仅在扩展内存参与 PBKDF2 解密 + AES-GCM，数据不上报任何服务器。"), icon: KeyRound, color: "text-indigo-600 bg-indigo-50 border-indigo-100" },
+                { title: t("智能域名精准匹配"), desc: t("自动获取当前标签页主域名，优先呈现该站点的关联凭证。"), icon: Globe, color: "text-blue-600 bg-blue-50 border-blue-100" },
+                { title: t("防窃听无痕填充"), desc: t("通过 Content Script 沙箱隔离注入，有效隔离恶意页面 DOM 侦听。"), icon: Zap, color: "text-emerald-600 bg-emerald-50 border-emerald-100" },
+                { title: t("会话级免输入解锁"), desc: t("解锁一次，浏览器会话内填充无需再输主密码；关闭浏览器自动清除内存密钥。"), icon: Lock, color: "text-purple-600 bg-purple-50 border-purple-100" }
               ].map((feat, idx) => {
                 const IconComp = feat.icon;
                 return (
@@ -407,17 +408,17 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
           <div>
             <h3 className="text-xs md:text-sm font-bold text-slate-800 flex items-center space-x-2">
               <Chrome className="w-4 h-4 text-indigo-600" />
-              <span>全平台浏览器安装加载指南</span>
+              <span>{t("全平台浏览器安装加载指南")}</span>
             </h3>
-            <p className="text-[10px] text-slate-500 mt-0.5">选择您正在使用的浏览器，查看 1 分钟解压加载安装步骤</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">{t("选择您正在使用的浏览器，查看 1 分钟解压加载安装步骤")}</p>
           </div>
 
           <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200/60 font-medium text-xs">
             {[
               { key: "chromium" as const, label: "Chromium (Chrome/Edge/Brave)" },
-              { key: "firefox" as const, label: "Firefox 火狐" },
+              { key: "firefox" as const, label: t("Firefox 火狐") },
               { key: "safari" as const, label: "Safari" },
-              { key: "mobile" as const, label: "安卓手机 (Kiwi/Orion)" }
+              { key: "mobile" as const, label: t("安卓手机 (Kiwi/Orion)") }
             ].map(tab => (
               <button
                 key={tab.key}
@@ -437,10 +438,10 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
           {activeGuideTab === "chromium" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
               {[
-                { step: "01", title: "解压 ZIP 压缩包", desc: "将下载的 SecureVault_Browser_Extension.zip 解压到本地任意文件夹。" },
-                { step: "02", title: "打开扩展管理页", desc: "在地址栏输入 chrome://extensions/ (Edge 为 edge://extensions/ ) 并回车。" },
-                { step: "03", title: "开启开发者模式", desc: "在扩展管理页面右上角，开启「开发者模式」开关。" },
-                { step: "04", title: "加载已解压扩展", desc: "点击「加载已解压的扩展程序」，选择解压出来的目录即可！" }
+                { step: "01", title: t("解压 ZIP 压缩包"), desc: t("将下载的 SecureVault_Browser_Extension.zip 解压到本地任意文件夹。") },
+                { step: "02", title: t("打开扩展管理页"), desc: t("在地址栏输入 chrome://extensions/ (Edge 为 edge://extensions/ ) 并回车。") },
+                { step: "03", title: t("开启开发者模式"), desc: t("在扩展管理页面右上角，开启「开发者模式」开关。") },
+                { step: "04", title: t("加载已解压扩展"), desc: t("点击「加载已解压的扩展程序」，选择解压出来的目录即可！") }
               ].map((item, idx) => (
                 <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 space-y-0.5 relative overflow-hidden h-full flex flex-col justify-start">
                   <div className="flex items-center space-x-1.5">
@@ -456,9 +457,9 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
           {activeGuideTab === "firefox" && (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               {[
-                { step: "01", title: "打开 about:debugging", desc: "在 Firefox 地址栏输入 about:debugging 并按回车。" },
-                { step: "02", title: "进入「此 Firefox」", desc: "点击左侧边栏的「此 Firefox」选项。" },
-                { step: "03", title: "载入临时附加组件", desc: "点击「载入临时附加组件…」，选择解压目录中的 manifest.json 文件即可！" }
+                { step: "01", title: t("打开 about:debugging"), desc: t("在 Firefox 地址栏输入 about:debugging 并按回车。") },
+                { step: "02", title: t("进入「此 Firefox」"), desc: t("点击左侧边栏的「此 Firefox」选项。") },
+                { step: "03", title: t("载入临时附加组件"), desc: t("点击「载入临时附加组件…」，选择解压目录中的 manifest.json 文件即可！") }
               ].map((item, idx) => (
                 <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 space-y-0.5 h-full flex flex-col justify-start">
                   <div className="flex items-center space-x-1.5">
@@ -475,10 +476,10 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 space-y-0.5 h-full flex flex-col justify-center">
               <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-2">
                 <Info className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                <span>Safari 开发者转换模式</span>
+                <span>{t("Safari 开发者转换模式")}</span>
               </h4>
               <p className="text-[10px] text-slate-600 leading-relaxed">
-                Safari 使用 Apple Xcode 提供的 <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[9px]">xcrun safari-web-extension-converter</code> 工具将 WebExtensions 转换为 Xcode 工程。轻量级 macOS 浏览器如 Orion 可直接以开发者模式一键加载解压目录。
+                {t("Safari 使用 Apple Xcode 提供的 ")}<code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[9px]">xcrun safari-web-extension-converter</code>{t(" 工具将 WebExtensions 转换为 Xcode 工程。轻量级 macOS 浏览器如 Orion 可直接以开发者模式一键加载解压目录。")}
               </p>
             </div>
           )}
@@ -487,10 +488,10 @@ export const BrowserExtensionHub: React.FC<BrowserExtensionHubProps> = ({
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2 space-y-0.5 h-full flex flex-col justify-center">
               <h4 className="text-xs font-bold text-slate-800 flex items-center space-x-2">
                 <Smartphone className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                <span>Kiwi Browser / Orion (Android 移动端扩展)</span>
+                <span>{t("Kiwi Browser / Orion (Android 移动端扩展)")}</span>
               </h4>
               <p className="text-[10px] text-slate-600 leading-relaxed">
-                在 Android 手机上安装 <strong>Kiwi Browser</strong>，在 Kiwi 中访问 <code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[9px]">chrome://extensions</code>，勾选开发者模式，点击「+ from .zip / .crx / .user.js」即可加载并体验一键无痕填充！
+                {t("在 Android 手机上安装 ")}<strong>Kiwi Browser</strong>{t("，在 Kiwi 中访问 ")}<code className="bg-slate-200 px-1 py-0.5 rounded font-mono text-[9px]">chrome://extensions</code>{t("，勾选开发者模式，点击「+ from .zip / .crx / .user.js」即可加载并体验一键无痕填充！")}
               </p>
             </div>
           )}

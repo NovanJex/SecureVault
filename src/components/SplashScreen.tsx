@@ -3,6 +3,7 @@
 import React from "react";
 import { LockKeyhole } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { t } from "../i18n";
 
 export interface SplashScreenProps {
   visible: boolean;
@@ -42,7 +43,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ visible, loadingStep
             {/* Title */}
             <div className="space-y-1.5">
               <h2 className="text-lg font-bold tracking-tight text-slate-800 font-sans">
-                SecureVault 安全保险箱
+                {t("SecureVault 安全保险箱")}
               </h2>
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-mono font-bold">
                 ZERO-KNOWLEDGE SECURITY SANDBOX

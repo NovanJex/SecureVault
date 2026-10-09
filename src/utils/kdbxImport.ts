@@ -5,6 +5,7 @@ import { VaultItem, ItemType } from "../types";
 import { ImportResult } from "./browserImport";
 import { secureRandomIndex } from "./vaultStorage";
 import { extractOtpSecret } from "./otp";
+import { t, tf } from "../i18n";
 
 // ============================================================
 // Rust 端返回的原始条目结构
@@ -71,7 +72,7 @@ export function convertKdbxPayload(payload: KdbxImportPayload): ImportResult {
     if (!raw.title && !raw.username && !raw.password && !raw.url && !raw.notes) continue;
 
     const type = inferType(raw);
-    const folder = raw.folder || "KeePass 导入";
+    const folder = raw.folder || t("KeePass 导入");
     folderSet.add(folder);
 
     const cardCustom = type === "card"
@@ -102,14 +103,14 @@ export function convertKdbxPayload(payload: KdbxImportPayload): ImportResult {
     items.push({
       id: randId(),
       type,
-      title: raw.title || "未命名条目",
+      title: raw.title || t("未命名条目"),
       folder,
       username: raw.username,
       password: raw.password,
       url: raw.url,
       notes: raw.notes
-        ? `由 KeePass 导入\n${raw.notes}`
-        : "由 KeePass 导入",
+        ? tf.kdbxNote(raw.notes)
+        : tf.kdbxNoteEmpty(),
       strength: raw.password ? "medium" : "weak",
       updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
       isFavorite: raw.favorite,

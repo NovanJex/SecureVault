@@ -13,6 +13,7 @@ import {
 } from "../utils/vaultStorage";
 import { encryptVault, decryptVault, deriveMasterKey, computeSha256 } from "../utils/tauriBridge";
 import { getVersion } from '@tauri-apps/api/app';
+import { t } from '../i18n';
 
 const EMPTY_VAULT: VaultPayload = {
   items: [],
@@ -123,7 +124,7 @@ export function useVault(): UseVaultReturn {
   /** 创建主密码并初始化加密保险箱 */
   const createMasterPassword = useCallback(async (password: string) => {
     if (!password.trim() || password.length < 8) {
-      setUnlockError("主密码长度至少需要 8 位以确保高强度加密！");
+      setUnlockError(t("主密码长度至少需要 8 位以确保高强度加密！"));
       return;
     }
 
@@ -131,24 +132,24 @@ export function useVault(): UseVaultReturn {
     setUnlockError("");
 
     try {
-      setDerivationProgress("🔑 正在初始化零知识本地加密协议...");
+      setDerivationProgress(t("🔑 正在初始化零知识本地加密协议..."));
       await delay(100);
 
-      setDerivationProgress("⚙️ 正在生成用户专属高熵 Salt 物理字节...");
+      setDerivationProgress(t("⚙️ 正在生成用户专属高熵 Salt 物理字节..."));
       await delay(100);
 
       setDerivationProgress(selectedKdf === "argon2id"
-        ? "🧠 正在分配 64MB 锁页物理内存, 准备进行 Argon2id 迭代推导..."
-        : "⚙️ 正在执行 PBKDF2-HMAC-SHA256 推导 (100,000次物理循环迭代)...");
+        ? t("🧠 正在分配 64MB 锁页物理内存, 准备进行 Argon2id 迭代推导...")
+        : t("⚙️ 正在执行 PBKDF2-HMAC-SHA256 推导 (100,000次物理循环迭代)..."));
       const { salt, masterKey: key } = await createVaultFile(password, EMPTY_VAULT, selectedKdf);
 
-      setDerivationProgress("🛡️ 正在采用 AES-256-GCM 进行对称对齐...");
+      setDerivationProgress(t("🛡️ 正在采用 AES-256-GCM 进行对称对齐..."));
       await delay(100);
 
-      setDerivationProgress("🔒 正在通过 Windows VirtualLock / macOS mlock 锁定密钥内存页...");
+      setDerivationProgress(t("🔒 正在通过 Windows VirtualLock / macOS mlock 锁定密钥内存页..."));
       await delay(100);
 
-      setDerivationProgress("✨ 本地保险箱初始化成功！已派生安全会话物理密钥。");
+      setDerivationProgress(t("✨ 本地保险箱初始化成功！已派生安全会话物理密钥。"));
       await delay(100);
 
       setMasterKey(key);
@@ -159,7 +160,7 @@ export function useVault(): UseVaultReturn {
       setDerivationProgress("");
     } catch (err) {
       console.error("创建保险箱失败:", err);
-      setUnlockError("❌ 创建保险箱失败，请重试");
+      setUnlockError(t("❌ 创建保险箱失败，请重试"));
       setIsDeriving(false);
       throw err;
     }
@@ -168,7 +169,7 @@ export function useVault(): UseVaultReturn {
   /** 解锁保险箱 — PBKDF2 派生 + AES-256-GCM 解密 */
   const unlock = useCallback(async (password: string) => {
     if (!password.trim()) {
-      setUnlockError("❌ 主密码不能为空！");
+      setUnlockError(t("❌ 主密码不能为空！"));
       return;
     }
 
@@ -176,18 +177,18 @@ export function useVault(): UseVaultReturn {
     setUnlockError("");
 
     try {
-      setDerivationProgress("🔓 正在读取本地加密 SQLite 扇区...");
+      setDerivationProgress(t("🔓 正在读取本地加密 SQLite 扇区..."));
       await delay(100);
 
       setDerivationProgress(selectedKdf === "argon2id"
-        ? "🧠 正在载入 Argon2id (m=64MB, t=4, p=4) 高阻断抗暴力破解模块..."
-        : "⚙️ 正在拉伸 Master Key (PBKDF2-SHA256, 100,000次迭代)...");
+        ? t("🧠 正在载入 Argon2id (m=64MB, t=4, p=4) 高阻断抗暴力破解模块...")
+        : t("⚙️ 正在拉伸 Master Key (PBKDF2-SHA256, 100,000次迭代)..."));
       const { masterKey: key, data } = await unlockVaultFile(password, vaultSalt, storedCiphertext, selectedKdf);
 
-      setDerivationProgress("🔑 已派生 256-bit AES 对称加解密密钥...");
+      setDerivationProgress(t("🔑 已派生 256-bit AES 对称加解密密钥..."));
       await delay(100);
 
-      setDerivationProgress("⚡ 内存零知识解密成功，正在导入安全区...");
+      setDerivationProgress(t("⚡ 内存零知识解密成功，正在导入安全区..."));
       await delay(100);
 
       setMasterKey(key);
@@ -199,7 +200,7 @@ export function useVault(): UseVaultReturn {
       setDerivationProgress("");
     } catch (err) {
       console.error("解锁失败:", err);
-      setUnlockError("❌ 主密码错误或保险箱数据损坏，无法解锁！");
+      setUnlockError(t("❌ 主密码错误或保险箱数据损坏，无法解锁！"));
       setIsDeriving(false);
       throw err;
     }
@@ -235,10 +236,10 @@ export function useVault(): UseVaultReturn {
     newKdf?: "argon2id" | "pbkdf2"
   ) => {
     if (!vaultSalt || !storedCiphertext) {
-      throw new Error("保险箱未初始化，无法修改主密码");
+      throw new Error(t("保险箱未初始化，无法修改主密码"));
     }
     if (!newPass.trim() || newPass.length < 8) {
-      throw new Error("新主密码长度至少需要 8 位");
+      throw new Error(t("新主密码长度至少需要 8 位"));
     }
 
     const kdf = newKdf || selectedKdf;
@@ -252,7 +253,7 @@ export function useVault(): UseVaultReturn {
 
     // 3. 重新读取 vault.enc 获取新密文（salt 同上，但密文必须同步获取）
     const raw = await loadVaultRaw();
-    if (!raw) throw new Error("保险箱文件保存失败");
+    if (!raw) throw new Error(t("保险箱文件保存失败"));
 
     // 4. 原子性更新所有相关状态
     setMasterKey(newKey);
@@ -285,7 +286,7 @@ export function useVault(): UseVaultReturn {
       salt: vaultSalt,
       checksum,
       encryptedPayload,
-      hint: "SecureVault 加密备份 — 受主密码保护，含 SHA-256 完整性校验。",
+      hint: t("SecureVault 加密备份 — 受主密码保护，含 SHA-256 完整性校验。"),
     }, null, 2);
   }, [masterKey, vaultSalt, folders, vaultItems, selectedKdf]);
 
@@ -295,14 +296,14 @@ export function useVault(): UseVaultReturn {
 
     let payload: any = data;
     if (data.isEncrypted && data.encryptedPayload && data.salt) {
-      if (!masterKey) throw new Error("保险箱未解锁，无法解密导入文件");
+      if (!masterKey) throw new Error(t("保险箱未解锁，无法解密导入文件"));
       const decrypted = await decryptVault(data.encryptedPayload, masterKey);
 
       // 验证 SHA-256 完整性校验
       if (data.checksum) {
         const actualChecksum = await computeSha256(decrypted);
         if (actualChecksum !== data.checksum) {
-          throw new Error("备份文件完整性校验失败：数据可能已损坏或被篡改");
+          throw new Error(t("备份文件完整性校验失败：数据可能已损坏或被篡改"));
         }
       }
 

@@ -9,6 +9,7 @@ import {
 import type { VaultItem } from "../types";
 import { generateTotp } from "../utils/tauriBridge";
 import { isExpired, daysUntilExpiry, formatDateCn } from "../utils/dateUtils";
+import { t, tf } from "../i18n";
 
 export interface CredentialDetailProps {
   item: VaultItem;
@@ -33,8 +34,8 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
       <div className="flex items-center space-x-2 text-left">
         <ShieldCheck className="w-5 h-5 text-blue-600 shrink-0" />
         <div>
-          <h3 className="text-xs font-bold text-slate-800 leading-tight">安全凭证控制台</h3>
-          <p className="text-[10px] text-slate-400 mt-0.5">本地沙盒安全区解密视图</p>
+          <h3 className="text-xs font-bold text-slate-800 leading-tight">{t("安全凭证控制台")}</h3>
+          <p className="text-[10px] text-slate-400 mt-0.5">{t("本地沙盒安全区解密视图")}</p>
         </div>
       </div>
       <div className="flex items-center space-x-1.5 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 shrink-0 self-start md:self-auto">
@@ -67,30 +68,30 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
                   {item.expiresAt && (() => {
                     const days = daysUntilExpiry(item.expiresAt);
                     if (isExpired(item.expiresAt)) {
-                      return <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded shrink-0">{formatDateCn(item.expiresAt)} 已过期</span>;
+                      return <span className="text-[10px] font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded shrink-0">{tf.expiredOn(formatDateCn(item.expiresAt))}</span>;
                     }
                     if (days <= 30) {
-                      return <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded shrink-0">剩 {days} 天到期</span>;
+                      return <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded shrink-0">{tf.daysLeftLong(days)}</span>;
                     }
-                    return <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded shrink-0">{formatDateCn(item.expiresAt)} 到期</span>;
+                    return <span className="text-[10px] font-bold bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded shrink-0">{tf.expiresOn(formatDateCn(item.expiresAt))}</span>;
                   })()}
                   <button onClick={() => onToggleFavorite(item.id)}
                     className={`p-1 rounded-md transition-all ${item.isFavorite ? "text-amber-500 hover:text-amber-600 bg-amber-50/50" : "text-slate-300 hover:text-amber-400"}`}
-                    title={item.isFavorite ? "取消星标" : "加入星标"}>
+                    title={item.isFavorite ? t("取消星标") : t("加入星标")}>
                     <Star className={`w-4 h-4 ${item.isFavorite ? "fill-amber-400 text-amber-500" : ""}`} />
                   </button>
                 </div>
-                <p className="text-[10px] font-mono text-slate-400 mt-2">UUID: {item.id} · 归属分类: {item.folder}</p>
+                <p className="text-[10px] font-mono text-slate-400 mt-2">{tf.uuidFolder(item.id, item.folder)}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2 shrink-0">
               <button onClick={onEdit}
                 className="px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 rounded-md text-xs font-semibold text-slate-700 transition shadow-sm flex items-center space-x-1.5 cursor-pointer">
-                <Edit3 className="w-3.5 h-3.5" /><span>编辑条目</span>
+                <Edit3 className="w-3.5 h-3.5" /><span>{t("编辑条目")}</span>
               </button>
               <button onClick={() => onDelete(item.id, item.title)}
                 className="px-3.5 py-2 bg-white hover:bg-rose-50 border border-slate-200 rounded-md text-xs font-semibold text-rose-600 transition shadow-sm flex items-center space-x-1.5 cursor-pointer">
-                <Trash2 className="w-3.5 h-3.5" /><span>安全擦除</span>
+                <Trash2 className="w-3.5 h-3.5" /><span>{t("安全擦除")}</span>
               </button>
             </div>
           </div>
@@ -99,27 +100,27 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
           <div className="space-y-6">
             {item.type === "login" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                <Field label="用户名 / 登录邮箱" value={item.username || ""} onCopy={() => onCopy(item.username || "", "用户名")} />
+                <Field label={t("用户名 / 登录邮箱")} value={item.username || ""} onCopy={() => onCopy(item.username || "", t("用户名"))} />
                 <div className="border-b border-slate-100 pb-2.5 relative group">
-                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">密码安全密文</p>
+                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t("密码安全密文")}</p>
                   <div className="flex items-center justify-between mt-1.5">
                     <p className="text-xs font-bold text-slate-800 font-mono tracking-widest">
                       {revealedPasswords[item.id] ? item.password : "••••••••••••••••"}
                     </p>
                     <div className="flex items-center space-x-2.5 ml-2 shrink-0">
                       <button onClick={() => onToggleReveal(item.id)} className="text-slate-400 hover:text-blue-600 transition-colors"
-                        title={revealedPasswords[item.id] ? "隐藏密码" : "显示密码"}>
+                        title={revealedPasswords[item.id] ? t("隐藏密码") : t("显示密码")}>
                         {revealedPasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                       </button>
-                      <button onClick={() => onCopy(item.password || "", "密码")} className="text-slate-400 hover:text-blue-600 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => onCopy(item.password || "", t("密码"))} className="text-slate-400 hover:text-blue-600 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
                 <div className="border-b border-slate-100 pb-2.5 relative group md:col-span-2">
-                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">快捷访问网址 URL</p>
+                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t("快捷访问网址 URL")}</p>
                   <div className="flex items-center justify-between mt-1.5">
                     <p className="text-xs font-semibold text-blue-600 truncate mr-4 font-mono select-all">{item.url}</p>
-                    <button onClick={() => onOpenUrl(item.url || "")} className="text-slate-400 hover:text-blue-600 transition-colors shrink-0 cursor-pointer" title="在系统浏览器中打开">
+                    <button onClick={() => onOpenUrl(item.url || "")} className="text-slate-400 hover:text-blue-600 transition-colors shrink-0 cursor-pointer" title={t("在系统浏览器中打开")}>
                       <ExternalLink className="w-3.5 h-3.5" />
                     </button>
                   </div>
@@ -129,25 +130,25 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
 
             {item.type === "card" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                <Field label="资产所有人/备查代号" value={item.cardName || ""} onCopy={() => onCopy(item.cardName || "", "持卡人")} />
+                <Field label={t("资产所有人/备查代号")} value={item.cardName || ""} onCopy={() => onCopy(item.cardName || "", t("持卡人"))} />
                 <div className="border-b border-slate-100 pb-2.5 relative group">
-                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">卡号 / 充值券密钥</p>
+                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t("卡号 / 充值券密钥")}</p>
                   <div className="flex items-center justify-between mt-1.5">
                     <p className="text-xs font-bold text-slate-800 font-mono">{revealedPasswords[item.id] ? item.cardNumber : "•••• •••• •••• ••••"}</p>
                     <div className="flex items-center space-x-2.5 ml-2">
                       <button onClick={() => onToggleReveal(item.id)} className="text-slate-400 hover:text-blue-600 transition-colors">{revealedPasswords[item.id] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}</button>
-                      <button onClick={() => onCopy(item.cardNumber || "", "卡号")} className="text-slate-400 hover:text-blue-600 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => onCopy(item.cardNumber || "", t("卡号"))} className="text-slate-400 hover:text-blue-600 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
-                <PlainField label="有效期/保质期" value={item.cardExpiry || ""} />
+                <PlainField label={t("有效期/保质期")} value={item.cardExpiry || ""} />
                 <div className="border-b border-slate-100 pb-2.5 relative group">
-                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">辅助说明码</p>
+                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t("辅助说明码")}</p>
                   <div className="flex items-center justify-between mt-1.5">
                     <p className="text-xs font-bold text-slate-800 font-mono">{revealedPasswords[item.id + "_cvv"] ? item.cardCvv : "•••"}</p>
                     <div className="flex items-center space-x-2.5 ml-2">
                       <button onClick={() => onToggleReveal(item.id + "_cvv")} className="text-slate-400 hover:text-blue-600 transition-colors">{revealedPasswords[item.id + "_cvv"] ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}</button>
-                      <button onClick={() => onCopy(item.cardCvv || "", "辅助说明码")} className="text-slate-400 hover:text-blue-600 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => onCopy(item.cardCvv || "", t("辅助说明码"))} className="text-slate-400 hover:text-blue-600 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
@@ -156,18 +157,18 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
 
             {item.type === "identity" && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                <PlainField label="常用登记所有人/姓名" value={item.identityName || ""} />
-                <Field label="关联绑定/申诉邮箱" value={item.identityEmail || ""} onCopy={() => onCopy(item.identityEmail || "", "邮箱")} />
-                <Field label="注册密保手机号" value={item.identityPhone || ""} onCopy={() => onCopy(item.identityPhone || "", "手机")} />
-                <Field label="常用于配送 / 绑定物理地址" value={item.identityAddress || ""} onCopy={() => onCopy(item.identityAddress || "", "地址")} />
+                <PlainField label={t("常用登记所有人/姓名")} value={item.identityName || ""} />
+                <Field label={t("关联绑定/申诉邮箱")} value={item.identityEmail || ""} onCopy={() => onCopy(item.identityEmail || "", t("邮箱"))} />
+                <Field label={t("注册密保手机号")} value={item.identityPhone || ""} onCopy={() => onCopy(item.identityPhone || "", t("手机"))} />
+                <Field label={t("常用于配送 / 绑定物理地址")} value={item.identityAddress || ""} onCopy={() => onCopy(item.identityAddress || "", t("地址"))} />
               </div>
             )}
 
             {item.notes && (
               <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-lg relative group">
-                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">安全备忘明细及备用字段</p>
+                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">{t("安全备忘明细及备用字段")}</p>
                 <div className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed select-all font-mono">{item.notes}</div>
-                <button onClick={() => onCopy(item.notes || "", "安全备忘")} className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-all"><Copy className="w-3.5 h-3.5" /></button>
+                <button onClick={() => onCopy(item.notes || "", t("安全备忘"))} className="absolute right-3 top-3 opacity-0 group-hover:opacity-100 text-slate-400 hover:text-blue-600 transition-all"><Copy className="w-3.5 h-3.5" /></button>
               </div>
             )}
 
@@ -175,7 +176,7 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
 
             {item.customFields && Object.keys(item.customFields).length > 0 && (
               <div>
-                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">自定义字段</p>
+                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">{t("自定义字段")}</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                   {Object.entries(item.customFields).map(([key, value]) => (
                     <Field key={key} label={key} value={value || ""} onCopy={() => onCopy(value || "", key)} />
@@ -193,15 +194,15 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
                   <AlertTriangle className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">{item.ignoreSecurityWarning ? "已忽略的安全风险" : "检测到凭证安全隐患"}</h4>
+                  <h4 className="text-xs font-bold text-slate-800">{item.ignoreSecurityWarning ? t("已忽略的安全风险") : t("检测到凭证安全隐患")}</h4>
                   <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
                     {item.ignoreSecurityWarning ? (
-                      <span>🔇 已手动将该条目的风险设为忽略，全库评分已恢复。</span>
+                      <span>{t("🔇 已手动将该条目的风险设为忽略，全库评分已恢复。")}</span>
                     ) : (
                       <span>
-                        {item.strength === "weak" && "当前密码字符复杂度较低，极易遭受穷举破译。"}
-                        {passMap[item.password || ""] && passMap[item.password || ""] > 1 && `当前密码在本地库中存在 ${passMap[item.password || ""]} 次复用，易受一站撞库波及。`}
-                        {KNOWN_COMPROMISED.has((item.password || "").toLowerCase()) && "当前密码极易猜测且在公开泄漏凭证中极度高危。"}
+                        {item.strength === "weak" && t("当前密码字符复杂度较低，极易遭受穷举破译。")}
+                        {passMap[item.password || ""] && passMap[item.password || ""] > 1 && tf.reuseWarn(passMap[item.password || ""])}
+                        {KNOWN_COMPROMISED.has((item.password || "").toLowerCase()) && t("当前密码极易猜测且在公开泄漏凭证中极度高危。")}
                       </span>
                     )}
                   </p>
@@ -209,7 +210,7 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
               </div>
               <button type="button" onClick={() => onToggleIgnoreWarning(item.id)}
                 className={`text-[10px] font-bold px-3 py-1.5 rounded-lg border transition-all shrink-0 cursor-pointer ${item.ignoreSecurityWarning ? "bg-white border-slate-300 text-slate-700 hover:bg-slate-50 shadow-sm" : "bg-amber-100 border-amber-300/80 text-amber-800 hover:bg-amber-200 shadow-sm"}`}>
-                {item.ignoreSecurityWarning ? "恢复风险监控" : "忽略此项警告"}
+                {item.ignoreSecurityWarning ? t("恢复风险监控") : t("忽略此项警告")}
               </button>
             </div>
           )}
@@ -222,16 +223,16 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
                   {item.strength === "strong" ? <ShieldCheck className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-slate-800">本地密码强度诊断度量</h4>
+                  <h4 className="text-xs font-bold text-slate-800">{t("本地密码强度诊断度量")}</h4>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    {item.strength === "strong" && "高热力学熵值保护，抵御超级计算机暴力破解。"}
-                    {item.strength === "medium" && "基本符合安全合规，但建议加入特殊符号强化。"}
-                    {item.strength === "weak" && "警告：密码强度极低，且检测到重复关联，极易遭受撞库。"}
+                    {item.strength === "strong" && t("高热力学熵值保护，抵御超级计算机暴力破解。")}
+                    {item.strength === "medium" && t("基本符合安全合规，但建议加入特殊符号强化。")}
+                    {item.strength === "weak" && t("警告：密码强度极低，且检测到重复关联，极易遭受撞库。")}
                   </p>
                 </div>
               </div>
               <span className={`text-[10px] font-bold px-3 py-1 rounded-full shrink-0 uppercase tracking-wider ${item.strength === "strong" ? "bg-emerald-100 text-emerald-800" : item.strength === "medium" ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"}`}>
-                {item.strength === "strong" ? "高安全级" : item.strength === "medium" ? "中等合规" : "高危建议重设"}
+                {item.strength === "strong" ? t("高安全级") : item.strength === "medium" ? t("中等合规") : t("高危建议重设")}
               </span>
             </div>
           )}
@@ -246,13 +247,13 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
               </svg>
             </div>
             <div>
-              <div className="text-xs font-bold text-slate-800">军工级零知识端到端加密防护</div>
-              <div className="text-[10px] text-slate-500">此保险箱受 AES-256-GCM 算法保护。密钥不落盘、不离港、绝不传输。</div>
+              <div className="text-xs font-bold text-slate-800">{t("军工级零知识端到端加密防护")}</div>
+              <div className="text-[10px] text-slate-500">{t("此保险箱受 AES-256-GCM 算法保护。密钥不落盘、不离港、绝不传输。")}</div>
             </div>
           </div>
           <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono select-none">
-            <span className="flex items-center space-x-1"><Clock className="w-3 h-3" /><span>最近修改：{item.updatedAt}</span></span>
-            <span>逻辑时钟（LWW-Element-Set）：V1_{item.id}</span>
+            <span className="flex items-center space-x-1"><Clock className="w-3 h-3" /><span>{tf.lastModified(item.updatedAt)}</span></span>
+            <span>{tf.lwwClock(item.id)}</span>
           </div>
         </div>
       </div>
@@ -309,7 +310,7 @@ const TotpSection: React.FC<{ secret: string; onCopy: (text: string, label: stri
   if (error) {
     return (
       <div className="bg-rose-50 border border-rose-200/70 p-4 rounded-lg">
-        <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">两步验证码</p>
+        <p className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">{t("两步验证码")}</p>
         <p className="text-xs text-rose-500 mt-1.5">{error}</p>
       </div>
     );
@@ -322,12 +323,12 @@ const TotpSection: React.FC<{ secret: string; onCopy: (text: string, label: stri
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider flex items-center space-x-1.5">
           <KeyRound className="w-3 h-3" />
-          <span>两步验证码 (TOTP)</span>
+          <span>{t("两步验证码 (TOTP)")}</span>
         </p>
-        <button onClick={() => onCopy(code, "验证码")}
+        <button onClick={() => onCopy(code, t("验证码"))}
           className="opacity-0 group-hover:opacity-100 text-indigo-500 hover:text-indigo-700 transition-all cursor-pointer flex items-center space-x-1 text-[10px] font-bold">
           <Copy className="w-3 h-3" />
-          <span>复制</span>
+          <span>{t("复制")}</span>
         </button>
       </div>
       <div className="flex items-end justify-between">

@@ -2,6 +2,7 @@
 // 调用 Rust 后端进行 PBKDF2 派生 + AES-256-GCM 加解密
 
 import { deriveMasterKey, encryptVault, decryptVault, saveSecureVaultFile, loadSecureVaultFile } from './tauriBridge';
+import { t } from '../i18n';
 import type { VaultItem, VaultFolder } from '../types';
 
 // ============================================================
@@ -121,14 +122,14 @@ export async function loadVaultRaw(): Promise<{ salt: string; ciphertext: string
 
   const colonIdx = raw.indexOf(':');
   if (colonIdx === -1) {
-    throw new Error('保险箱文件格式无效：缺少 salt 分隔符');
+    throw new Error(t('保险箱文件格式无效：缺少 salt 分隔符'));
   }
 
   const salt = raw.substring(0, colonIdx);
   const ciphertext = raw.substring(colonIdx + 1);
 
   if (!salt || !ciphertext) {
-    throw new Error('保险箱文件格式无效：salt 或密文为空');
+    throw new Error(t('保险箱文件格式无效：salt 或密文为空'));
   }
 
   return { salt, ciphertext };

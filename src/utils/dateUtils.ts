@@ -1,5 +1,7 @@
 // dateUtils.ts — 到期日期语义统一（列表徽标 / 详情徽标 / 审计统计共用）
 
+import { formatDateLocalized } from "../i18n";
+
 /** 到期判定：到期日当天 23:59:59 之前视为未过期 */
 export function isExpired(expiresAt?: string): boolean {
   if (!expiresAt) return false;
@@ -22,10 +24,7 @@ export function daysUntilExpiry(expiresAt: string): number {
   return Math.ceil(diff / 86400000);
 }
 
-/** 展示格式：2026-08-27 → 2026年8月27日 */
+/** 展示格式（跟随语言）：2026-08-27 → 2026年8月27日 / Aug 27, 2026 */
 export function formatDateCn(dateStr: string): string {
-  if (!dateStr) return "";
-  const [y, m, d] = dateStr.split("-");
-  if (!y || !m || !d) return dateStr;
-  return `${Number(y)}年${Number(m)}月${Number(d)}日`;
+  return formatDateLocalized(dateStr);
 }

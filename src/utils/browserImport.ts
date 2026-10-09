@@ -4,6 +4,7 @@
 import { VaultItem, ItemType } from "../types";
 import { secureRandomIndex } from "./vaultStorage";
 import { extractOtpSecret } from "./otp";
+import { t, tf } from "../i18n";
 
 // ============================================================
 // 类型定义
@@ -84,7 +85,7 @@ function domainFromUrl(url: string): string {
     const u = new URL(url.startsWith("http") ? url : "https://" + url);
     return u.hostname.replace("www.", "");
   } catch {
-    return url || "未知网站";
+    return url || t("未知网站");
   }
 }
 
@@ -119,7 +120,7 @@ const sourceLabel: Record<BrowserType, string> = {
   "bitwarden-json": "Bitwarden",
   safari: "Safari",
   kdbx: "KeePass",
-  unknown: "未知来源",
+  unknown: t("未知来源"),
 };
 
 // ============================================================
@@ -172,8 +173,8 @@ function mapChromeRow(row: string[], headers: string[]): VaultItem | null {
   const csvNote = get("note");
   return {
     id: randId(), type: "login", title: title || domainFromUrl(url),
-    folder: "浏览器导入", url, username, password,
-    notes: csvNote ? `由 Chrome/Edge 导入\n${csvNote}` : `由 Chrome/Edge 导入`,
+    folder: t("浏览器导入"), url, username, password,
+    notes: csvNote ? tf.importFrom("Chrome/Edge", csvNote) : tf.importFrom("Chrome/Edge"),
     strength: password ? "medium" : "weak",
     updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
     isFavorite: false, ignoreSecurityWarning: false,
@@ -186,8 +187,8 @@ function mapFirefoxRow(row: string[], headers: string[]): VaultItem | null {
   if (!url && !username && !password) return null;
   return {
     id: randId(), type: "login", title: domainFromUrl(url),
-    folder: "浏览器导入", url, username, password,
-    notes: `由 Firefox 导入`,
+    folder: t("浏览器导入"), url, username, password,
+    notes: tf.importFrom("Firefox"),
     strength: password ? "medium" : "weak",
     updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
     isFavorite: false, ignoreSecurityWarning: false,
@@ -202,8 +203,8 @@ function map1PasswordRow(row: string[], headers: string[]): VaultItem | null {
   const csvNote = get("notes");
   return {
     id: randId(), type: "login", title,
-    folder: "1Password 导入", url, username, password,
-    notes: csvNote ? `由 1Password 导入\n${csvNote}` : `由 1Password 导入`,
+    folder: t("1Password 导入"), url, username, password,
+    notes: csvNote ? tf.importFrom("1Password", csvNote) : tf.importFrom("1Password"),
     strength: password ? "medium" : "weak",
     updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
     isFavorite: false, ignoreSecurityWarning: false,
@@ -218,8 +219,8 @@ function mapSafariRow(row: string[], headers: string[]): VaultItem | null {
   const csvNote = get("notes");
   return {
     id: randId(), type: "login", title,
-    folder: "Safari 导入", url, username, password,
-    notes: csvNote ? `由 Safari 导入\n${csvNote}` : `由 Safari 导入`,
+    folder: t("Safari 导入"), url, username, password,
+    notes: csvNote ? tf.importFrom("Safari", csvNote) : tf.importFrom("Safari"),
     strength: password ? "medium" : "weak",
     updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
     isFavorite: false, ignoreSecurityWarning: false,
@@ -233,11 +234,11 @@ function mapLastPassRow(row: string[], headers: string[]): VaultItem | null {
   if (!url && !username && !password) return null;
   const extra = get("extra");
   const grouping = get("grouping");
-  const folder = grouping || "LastPass 导入";
+  const folder = grouping || t("LastPass 导入");
   return {
     id: randId(), type: "login", title,
     folder, url, username, password,
-    notes: extra ? `由 LastPass 导入\n备注: ${extra}` : `由 LastPass 导入`,
+    notes: extra ? tf.lastPassNote(extra) : tf.importFrom("LastPass"),
     strength: password ? "medium" : "weak",
     updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
     isFavorite: get("fav") === "1" || get("fav") === "true",
@@ -255,14 +256,14 @@ function mapBitwardenCsvRow(row: string[], headers: string[]): VaultItem | null 
   const typeMap: Record<string, ItemType> = { note: "note", card: "card", identity: "identity" };
   const itemType: ItemType = typeMap[bwType] || "login";
 
-  const folder = get("folder") || "Bitwarden 导入";
+  const folder = get("folder") || t("Bitwarden 导入");
   const isFavorite = get("favorite") === "1" || get("favorite") === "true";
   const bwNotes = get("notes");
 
   return {
     id: randId(), type: itemType, title,
     folder, url, username, password,
-    notes: bwNotes ? `由 Bitwarden 导入\n${bwNotes}` : `由 Bitwarden 导入`,
+    notes: bwNotes ? tf.importFrom("Bitwarden", bwNotes) : tf.importFrom("Bitwarden"),
     strength: password ? "medium" : "weak",
     updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
     isFavorite, ignoreSecurityWarning: false,
@@ -297,7 +298,7 @@ function importBitwardenJson(jsonText: string): ImportResult {
     if (!url && !username && !password) continue;
 
     const itemType = typeMap[item.type] || "login";
-    const folder = item.folder || item.folderName || item.collectionIds?.[0] || "Bitwarden 导入";
+    const folder = item.folder || item.folderName || item.collectionIds?.[0] || t("Bitwarden 导入");
     folderSet.add(folder);
 
     // TOTP：Bitwarden 的 login.totp（可能是 otpauth:// URI 或裸 Base32 密钥）
@@ -306,7 +307,7 @@ function importBitwardenJson(jsonText: string): ImportResult {
     items.push({
       id: randId(), type: itemType, title,
       folder, url, username, password,
-      notes: item.notes ? `由 Bitwarden 导入\n${item.notes}` : `由 Bitwarden 导入`,
+      notes: item.notes ? tf.importFrom("Bitwarden", item.notes) : tf.importFrom("Bitwarden"),
       strength: password ? "medium" : "weak",
       updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16),
       isFavorite: !!item.favorite,
@@ -388,7 +389,7 @@ export function checkDuplicates(
     const key = `${getDomain(item.url || "")}|${(item.username || "").toLowerCase()}`;
     if (existingKeys.has(key) && key !== "|") {
       duplicates++;
-      return { ...item, title: item.title + " (重复)" };
+      return { ...item, title: item.title + t(" (重复)") };
     }
     return item;
   });

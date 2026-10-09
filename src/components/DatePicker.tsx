@@ -5,15 +5,12 @@
 import React, { useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { formatDateCn } from "../utils/dateUtils";
+import { t, tf, WEEKDAYS, MONTHS } from "../i18n";
 
 interface DatePickerProps {
   value: string; // YYYY-MM-DD 或 ""
   onChange: (v: string) => void;
 }
-
-const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
-const MONTHS = ["1月", "2月", "3月", "4月", "5月", "6月", "7月", "8月", "9月", "10月", "11月", "12月"];
-
 
 export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
   const [open, setOpen] = useState(false);
@@ -75,9 +72,9 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
 
   // 标题：date 显示 年月 → 点击进月选择；month 显示 年 → 点击进年选择
   const title = viewMode === "date"
-    ? `${viewYear}年${viewMonth + 1}月`
+    ? tf.calTitle(viewYear, viewMonth + 1)
     : viewMode === "month"
-      ? `${viewYear}年`
+      ? tf.calYearTitle(viewYear)
       : `${yearPage} - ${yearPage + 11}`;
   const onTitleClick = () => {
     if (viewMode === "date") setViewMode("month");
@@ -109,7 +106,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
         >
           <span className="flex items-center space-x-2 min-w-0">
             <CalendarDays className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-            <span className="truncate">{value ? formatDateCn(value) : "选择到期日期"}</span>
+            <span className="truncate">{value ? formatDateCn(value) : t("选择到期日期")}</span>
           </span>
         </button>
         {value && (
@@ -118,7 +115,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
             // pointerdown 阶段处理清除：早于 click，且 preventDefault 阻断 click 派发，
             // 杜绝"点击 X 边缘误触触发按钮弹出日历"的瞬闪问题
             onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); onChange(""); }}
-            title="清除日期"
+            title={t("清除日期")}
             className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
           >
             <X className="w-3.5 h-3.5" />
@@ -135,20 +132,20 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
             {/* 标题导航 */}
             <div className="flex items-center justify-between mb-2">
               <button type="button" onClick={navPrev}
-                className="p-1 hover:bg-slate-100 rounded transition-colors cursor-pointer" title="上一步">
+                className="p-1 hover:bg-slate-100 rounded transition-colors cursor-pointer" title={t("上一步")}>
                 <ChevronLeft className="w-3.5 h-3.5 text-slate-500" />
               </button>
               <button
                 type="button"
                 onClick={onTitleClick}
                 className="text-xs font-bold text-slate-700 hover:text-indigo-600 transition-colors cursor-pointer px-1.5 py-0.5 rounded hover:bg-indigo-50"
-                title={viewMode === "date" ? "选择月份" : viewMode === "month" ? "选择年份" : ""}
+                title={viewMode === "date" ? t("选择月份") : viewMode === "month" ? t("选择年份") : ""}
               >
                 {title}
                 {viewMode !== "year" && <span className="text-slate-300 ml-0.5 text-[9px]">▾</span>}
               </button>
               <button type="button" onClick={navNext}
-                className="p-1 hover:bg-slate-100 rounded transition-colors cursor-pointer" title="下一步">
+                className="p-1 hover:bg-slate-100 rounded transition-colors cursor-pointer" title={t("下一步")}>
                 <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
               </button>
             </div>
@@ -193,7 +190,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
                     onClick={() => { onChange(todayStr); setOpen(false); }}
                     className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 cursor-pointer"
                   >
-                    今天
+                    {t("今天")}
                   </button>
                   {value && (
                     <button
@@ -201,7 +198,7 @@ export const DatePicker: React.FC<DatePickerProps> = ({ value, onChange }) => {
                       onClick={() => { onChange(""); setOpen(false); }}
                       className="text-[10px] font-bold text-slate-400 hover:text-rose-500 cursor-pointer"
                     >
-                      清除日期
+                      {t("清除日期")}
                     </button>
                   )}
                 </div>

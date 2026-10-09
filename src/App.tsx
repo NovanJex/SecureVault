@@ -63,6 +63,7 @@ import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/b
 import { convertKdbxPayload } from "./utils/kdbxImport";
 import { extractOtpSecret } from "./utils/otp";
 import { isExpired, daysUntilExpiry } from "./utils/dateUtils";
+import { t, tf } from "./i18n";
 
 export default function App() {
   // ===== 保险箱核心 Hook =====
@@ -87,11 +88,7 @@ export default function App() {
   const [editingFolderId, setEditingFolderId] = useState<string | null>(null);
   const [editingFolderName, setEditingFolderName] = useState<string>("");
 
-  const getTimeoutLabel = (minutes: number) => {
-    if (minutes === 0) return "从不锁定";
-    if (minutes < 60) return `${minutes} 分钟`;
-    return `${minutes / 60} 小时`;
-  };
+  const getTimeoutLabel = (minutes: number) => tf.timeout(minutes);
 
   // 过滤与搜索状态
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -203,14 +200,14 @@ export default function App() {
 
   // ===== 启动 Splash =====
   const [isInitializingApp, setIsInitializingApp] = useState(true);
-  const [initialLoadingStep, setInitialLoadingStep] = useState("🔐 正在初始化本地沙盒安全区 (Secure Enclave)...");
+  const [initialLoadingStep, setInitialLoadingStep] = useState(t("🔐 正在初始化本地沙盒安全区 (Secure Enclave)..."));
 
   useEffect(() => {
     const steps = [
-      "🔐 正在初始化本地沙盒安全区 (Secure Enclave)...",
-      "⚙️ 正在载入 PBKDF2 / Argon2id 密码推导引擎...",
-      "🛡️ 正在进行对称密码体系与本地密文对齐度量...",
-      "⚡ 本端零知识安全沙箱启动就绪！",
+      t("🔐 正在初始化本地沙盒安全区 (Secure Enclave)..."),
+      t("⚙️ 正在载入 PBKDF2 / Argon2id 密码推导引擎..."),
+      t("🛡️ 正在进行对称密码体系与本地密文对齐度量..."),
+      t("⚡ 本端零知识安全沙箱启动就绪！"),
     ];
     let currentStep = 0;
     const interval = setInterval(() => {
@@ -247,7 +244,7 @@ export default function App() {
       if (timeoutId) clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         handleLockVault();
-        showToast("⏳ 由于长时间无操作，保险箱已自动安全锁定！");
+        showToast(t("⏳ 由于长时间无操作，保险箱已自动安全锁定！"));
       }, autoLockTimeout * 60 * 1000);
     };
 
@@ -280,7 +277,7 @@ export default function App() {
   const copyToClipboard = async (text: string, label: string) => {
     try {
       await writeText(text);
-      showToast(`✅ ${label}已成功复制到剪贴板！`);
+      showToast(tf.copied(label));
 
       // 防剪贴板泄漏计时器
       if (clipboardIntervalRef.current) {
@@ -301,7 +298,7 @@ export default function App() {
       clipboardIntervalRef.current = interval;
     } catch (err) {
       console.error("剪贴板写入失败:", err);
-      showToast("⚠️ 剪贴板访问失败");
+      showToast(t("⚠️ 剪贴板访问失败"));
     }
   };
 
@@ -311,7 +308,7 @@ export default function App() {
     try {
       await createMasterPassword(enteredPassword);
       setEnteredPassword("");
-      showToast("🔓 密码安全保险箱创建成功！");
+      showToast(t("🔓 密码安全保险箱创建成功！"));
     } catch {
       // 错误已在 Hook 中设置到 unlockError
     }
@@ -323,7 +320,7 @@ export default function App() {
     try {
       await unlockVault(enteredPassword);
       setEnteredPassword("");
-      showToast("🔓 保险箱已成功解锁！数据加载完毕。");
+      showToast(t("🔓 保险箱已成功解锁！数据加载完毕。"));
     } catch {
       // 错误已在 Hook 中设置
     }
@@ -335,14 +332,14 @@ export default function App() {
     setSelectedItemId(null);
     setIsEditing(false);
     setIsCreating(false);
-    showToast("🔒 保险箱已锁定。明文密钥及机密数据已安全从内存中擦除！");
+    showToast(t("🔒 保险箱已锁定。明文密钥及机密数据已安全从内存中擦除！"));
   };
 
   const handleForceResetVault = async () => {
     await forceResetVault();
     setEnteredPassword("");
     setShowForceResetConfirm(false);
-    showToast("💥 保险箱已成功强制重置并清空所有旧数据！");
+    showToast(t("💥 保险箱已成功强制重置并清空所有旧数据！"));
   };
 
   // 新建文件夹
@@ -350,13 +347,13 @@ export default function App() {
     e.preventDefault();
     const nameTrimmed = newFolderName.trim();
     if (!nameTrimmed) {
-      setFolderError("⚠️ 文件夹分类名称不能为空！");
+      setFolderError(t("⚠️ 文件夹分类名称不能为空！"));
       return;
     }
 
     const isDuplicate = folders.some(f => f.name.toLowerCase() === nameTrimmed.toLowerCase());
     if (isDuplicate) {
-      setFolderError("⚠️ 文件夹分类名称已存在！");
+      setFolderError(t("⚠️ 文件夹分类名称已存在！"));
       return;
     }
     
@@ -370,14 +367,14 @@ export default function App() {
     setNewFolderName("");
     setFolderError("");
     setShowFolderModal(false);
-    showToast(`📁 文件夹「${newFolder.name}」创建成功！`);
+    showToast(tf.folderCreated(newFolder.name));
   };
 
   // 重命名文件夹
   const handleRenameFolder = (id: string, oldName: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed) {
-      showToast("⚠️ 文件夹名称不能为空！");
+      showToast(t("⚠️ 文件夹名称不能为空！"));
       return;
     }
     if (trimmed === oldName) {
@@ -386,7 +383,7 @@ export default function App() {
     }
     const exists = folders.some(f => f.id !== id && f.name.toLowerCase() === trimmed.toLowerCase());
     if (exists) {
-      showToast("⚠️ 已存在同名文件夹！");
+      showToast(t("⚠️ 已存在同名文件夹！"));
       return;
     }
 
@@ -396,7 +393,7 @@ export default function App() {
       setSelectedFolder(trimmed);
     }
     setEditingFolderId(null);
-    showToast(`📁 文件夹重命名为「${trimmed}」成功！`);
+    showToast(tf.folderRenamed(trimmed));
   };
 
   // 删除文件夹
@@ -465,7 +462,7 @@ export default function App() {
   const handleSaveItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formTitle.trim()) {
-      showToast("⚠️ 凭证标题不能为空！");
+      showToast(t("⚠️ 凭证标题不能为空！"));
       return;
     }
 
@@ -513,7 +510,7 @@ export default function App() {
       setVaultItems(prev => [newItem, ...prev]);
       setSelectedItemId(newItem.id);
       setIsCreating(false);
-      showToast("💾 成功添加新密码条目并完成 AES-256 扇区加密存储！");
+      showToast(t("💾 成功添加新密码条目并完成 AES-256 扇区加密存储！"));
     } else if (selectedItemId) {
       setVaultItems(prev => prev.map(item => {
         if (item.id === selectedItemId) {
@@ -548,7 +545,7 @@ export default function App() {
         return item;
       }));
       setIsEditing(false);
-      showToast("💾 条目修改成功，已在内存防泄漏保护区写入安全磁道！");
+      showToast(t("💾 条目修改成功，已在内存防泄漏保护区写入安全磁道！"));
     }
   };
 
@@ -565,14 +562,14 @@ export default function App() {
     if (deleteConfirm.type === "item") {
       setVaultItems(prev => prev.filter(item => item.id !== deleteConfirm.id));
       setSelectedItemId(null);
-      showToast(`🗑️ 密码条目「${deleteConfirm.name}」已从本地存储完全覆写粉碎并擦除！`);
+      showToast(tf.itemDeleted(deleteConfirm.name));
     } else {
       setFolders(prev => prev.filter(f => f.id !== deleteConfirm.id));
       setVaultItems(prev => prev.map(item => item.folder === deleteConfirm.name ? { ...item, folder: "未分类" } : item));
       if (selectedFolder === deleteConfirm.name) {
         setSelectedFolder("all");
       }
-      showToast(`📁 文件夹「${deleteConfirm.name}」已安全删除。`);
+      showToast(tf.folderDeleted(deleteConfirm.name));
     }
     setDeleteConfirm(null);
   };
@@ -590,7 +587,7 @@ export default function App() {
     setVaultItems(prev => prev.map(item => {
       if (item.id === id) {
         const newVal = !item.ignoreSecurityWarning;
-        showToast(newVal ? "👁️ 已忽略该条目的密码安全诊断告警" : "🔒 已恢复该条目的密码安全诊断告警");
+        showToast(newVal ? t("👁️ 已忽略该条目的密码安全诊断告警") : t("🔒 已恢复该条目的密码安全诊断告警"));
         return { ...item, ignoreSecurityWarning: newVal };
       }
       return item;
@@ -617,34 +614,34 @@ export default function App() {
       return item;
     }));
 
-    showToast(`🔒 已自动为该条目安全更新 20 位高强随机密码！`);
+    showToast(t("🔒 已自动为该条目安全更新 20 位高强随机密码！"));
   };
 
   const handleExportData = async () => {
     const dataStr = await exportData();
     if (!dataStr) {
-      showToast("⚠️ 保险箱未解锁，无法导出");
+      showToast(t("⚠️ 保险箱未解锁，无法导出"));
       return;
     }
 
     try {
       const filePath = await save({
-        filters: [{ name: 'SecureVault 备份', extensions: ['json'] }],
+        filters: [{ name: t('SecureVault 备份'), extensions: ['json'] }],
         defaultPath: `SecureVault_Backup_${new Date().toISOString().slice(0, 10)}.json`,
       });
       if (!filePath) return;
 
       await invoke('write_export_file', { path: filePath, content: dataStr });
-      showToast("🔒 保险箱已使用 AES-256-GCM 加密并成功导出备份！");
+      showToast(t("🔒 保险箱已使用 AES-256-GCM 加密并成功导出备份！"));
     } catch (e) {
       console.error("导出失败:", e);
-      showToast("❌ 导出加密文件失败，请重试");
+      showToast(t("❌ 导出加密文件失败，请重试"));
     }
   };
 
   const processImportData = async (data: any, strategy: "merge" | "overwrite") => {
     if (!data || typeof data !== "object") {
-      showToast("❌ 无效的备份数据，请确保格式正确");
+      showToast(t("❌ 无效的备份数据，请确保格式正确"));
       return;
     }
 
@@ -659,7 +656,7 @@ export default function App() {
       // 已解锁 → 尝试用当前密钥解密
       try {
         await importData(JSON.stringify(data), strategy);
-        showToast("🎉 自动校验当前主密码成功，已无感解密并载入数据！");
+        showToast(t("🎉 自动校验当前主密码成功，已无感解密并载入数据！"));
       } catch {
         setImportBackupData(data);
         setImportStrategy(strategy);
@@ -670,14 +667,14 @@ export default function App() {
 
     // 未加密的旧版备份
     await importData(JSON.stringify(data), strategy);
-    showToast("⚠️ 载入了未加密的旧版明文格式备份文件");
+    showToast(t("⚠️ 载入了未加密的旧版明文格式备份文件"));
   };
 
   // 通过 Tauri 文件对话框导入备份
   const handleImportFile = async () => {
     try {
       const selected = await open({
-        filters: [{ name: 'JSON 备份', extensions: ['json'] }],
+        filters: [{ name: t('JSON 备份'), extensions: ['json'] }],
         multiple: false,
       });
 
@@ -692,7 +689,7 @@ export default function App() {
       await processImportData(data, importStrategy);
     } catch (err) {
       console.error("导入文件失败:", err);
-      showToast("❌ 备份文件读取或解析失败");
+      showToast(t("❌ 备份文件读取或解析失败"));
     }
   };
 
@@ -700,7 +697,7 @@ export default function App() {
   const handleBrowserImport = async () => {
     try {
       const selected = await open({
-        filters: [{ name: '密码导入文件', extensions: ['csv', 'json'] }],
+        filters: [{ name: t('密码导入文件'), extensions: ['csv', 'json'] }],
         multiple: false,
       });
       if (!selected) return;
@@ -713,7 +710,7 @@ export default function App() {
         content = await invoke<string>('read_export_file', { path: filePath });
       } catch (e) {
         console.error("读取文件失败:", e);
-        showToast(`❌ 文件读取失败: ${String(e)}`);
+        showToast(tf.fileReadFailed(String(e)));
         return;
       }
 
@@ -722,7 +719,7 @@ export default function App() {
         result = importBrowserFile(content);
       } catch (e) {
         console.error("CSV 解析失败:", e);
-        showToast(`❌ CSV 解析错误: ${String(e)}`);
+        showToast(tf.csvParseError(String(e)));
         return;
       }
 
@@ -739,7 +736,7 @@ export default function App() {
       setShowBrowserImport(true);
     } catch (err) {
       console.error("浏览器导入失败:", err);
-      showToast(`❌ 导入失败: ${String(err)}`);
+      showToast(tf.importFailed(String(err)));
     }
   };
 
@@ -747,7 +744,7 @@ export default function App() {
   const handleKdbxImport = async () => {
     try {
       const selected = await open({
-        filters: [{ name: 'KeePass 数据库', extensions: ['kdbx'] }],
+        filters: [{ name: t('KeePass 数据库'), extensions: ['kdbx'] }],
         multiple: false,
       });
       if (!selected) return;
@@ -761,14 +758,14 @@ export default function App() {
       setShowKdbxImportModal(true);
     } catch (err) {
       console.error("KDBX 导入失败:", err);
-      showToast(`❌ 导入失败: ${String(err)}`);
+      showToast(tf.importFailed(String(err)));
     }
   };
 
   const handleKdbxImportPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kdbxImportPassword) {
-      setKdbxImportError("请输入该 KDBX 文件的密码");
+      setKdbxImportError(t("请输入该 KDBX 文件的密码"));
       return;
     }
     if (!pendingKdbxPath) return;
@@ -779,7 +776,7 @@ export default function App() {
       const raw = await importKdbx(pendingKdbxPath, kdbxImportPassword);
       const payload = JSON.parse(raw);
       if (!payload.items || payload.items.length === 0) {
-        setKdbxImportError("该 KDBX 文件中没有有效的密码记录");
+        setKdbxImportError(t("该 KDBX 文件中没有有效的密码记录"));
         setIsKdbxImporting(false);
         return;
       }
@@ -806,7 +803,7 @@ export default function App() {
   // ===== KeePass KDBX 导出 =====
   const handleKdbxExport = () => {
     if (!masterKey || isLocked) {
-      showToast("⚠️ 保险箱未解锁，无法导出");
+      showToast(t("⚠️ 保险箱未解锁，无法导出"));
       return;
     }
     setKdbxExportPassword("");
@@ -818,11 +815,11 @@ export default function App() {
   const handleKdbxExportConfirm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!kdbxExportPassword || kdbxExportPassword.length < 4) {
-      setKdbxExportError("KDBX 密码至少需要 4 位");
+      setKdbxExportError(t("KDBX 密码至少需要 4 位"));
       return;
     }
     if (kdbxExportPassword !== kdbxExportConfirm) {
-      setKdbxExportError("两次输入的密码不一致");
+      setKdbxExportError(t("两次输入的密码不一致"));
       return;
     }
 
@@ -830,7 +827,7 @@ export default function App() {
     setKdbxExportError("");
     try {
       const filePath = await save({
-        filters: [{ name: 'KeePass 数据库', extensions: ['kdbx'] }],
+        filters: [{ name: t('KeePass 数据库'), extensions: ['kdbx'] }],
         defaultPath: `SecureVault_${new Date().toISOString().slice(0, 10)}.kdbx`,
       });
       if (!filePath) {
@@ -839,13 +836,13 @@ export default function App() {
       }
 
       await exportKdbx(filePath, JSON.stringify({ items: vaultItems }), kdbxExportPassword);
-      showToast("✅ 已导出 KeePass KDBX 数据库！");
+      showToast(t("✅ 已导出 KeePass KDBX 数据库！"));
       setShowKdbxExportModal(false);
       setKdbxExportPassword("");
       setKdbxExportConfirm("");
     } catch (err) {
       console.error("KDBX 导出失败:", err);
-      setKdbxExportError(`❌ 导出失败: ${String(err)}`);
+      setKdbxExportError(tf.exportFailed(String(err)));
     } finally {
       setIsKdbxExporting(false);
     }
@@ -856,11 +853,11 @@ export default function App() {
     setChangePwError("");
 
     if (!changePwNew.trim() || changePwNew.length < 8) {
-      setChangePwError("新主密码长度至少需要 8 位");
+      setChangePwError(t("新主密码长度至少需要 8 位"));
       return;
     }
     if (changePwNew !== changePwConfirm) {
-      setChangePwError("两次输入的新密码不一致");
+      setChangePwError(t("两次输入的新密码不一致"));
       return;
     }
 
@@ -868,15 +865,15 @@ export default function App() {
     setChangePwProgress("");
     const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
     try {
-      setChangePwProgress("🔑 正在验证旧密码...");
+      setChangePwProgress(t("🔑 正在验证旧密码..."));
       await delay(200);
       await changeMasterPassword(changePwOld, changePwNew, changePwNewKdf);
 
-      setChangePwProgress("🧬 正在用新密码重新加密保险箱...");
+      setChangePwProgress(t("🧬 正在用新密码重新加密保险箱..."));
       await delay(150);
 
-      setChangePwProgress("✅ 主密码修改成功！即将锁定...");
-      showToast("✅ 主密码修改成功！请用新密码重新解锁");
+      setChangePwProgress(t("✅ 主密码修改成功！即将锁定..."));
+      showToast(t("✅ 主密码修改成功！请用新密码重新解锁"));
 
       setTimeout(() => {
         handleLockVault();
@@ -887,7 +884,7 @@ export default function App() {
         setIsChangingPw(false);
       }, 800);
     } catch {
-      setChangePwError("❌ 旧密码错误，请重新输入");
+      setChangePwError(t("❌ 旧密码错误，请重新输入"));
       setIsChangingPw(false);
       setChangePwProgress("");
     }
@@ -897,7 +894,7 @@ export default function App() {
     if (!browserImportResult) return;
 
     const toImport = browserImportStrategy === "skip-duplicates"
-      ? browserImportResult.items.filter(i => !i.title.includes("(重复)"))
+      ? browserImportResult.items.filter(i => !i.title.includes(t(" (重复)")))
       : browserImportResult.items;
 
     if (toImport.length > 0) {
@@ -911,7 +908,7 @@ export default function App() {
           id: `folder-import-${fn.replace(/\s/g, "-")}`, name: fn, icon: "folder" as const
         }))]);
       }
-      showToast(`✅ 已导入 ${toImport.length} 条浏览器密码记录`);
+      showToast(tf.browserImported(toImport.length));
     }
 
     setShowBrowserImport(false);
@@ -922,7 +919,7 @@ export default function App() {
   const handleImportPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!importBackupData || !importPassword.trim()) {
-      setImportPasswordError("请输入备份文件的解密密码");
+      setImportPasswordError(t("请输入备份文件的解密密码"));
       return;
     }
 
@@ -930,23 +927,23 @@ export default function App() {
     setImportPasswordError("");
 
     try {
-      setImportDecryptProgress("🔓 正在派生解密密钥...");
+      setImportDecryptProgress(t("🔓 正在派生解密密钥..."));
       await new Promise(r => setTimeout(r, 150));
       const key = await deriveMasterKey(importPassword, importBackupData.salt);
 
-      setImportDecryptProgress("🔑 正在解密备份文件...");
+      setImportDecryptProgress(t("🔑 正在解密备份文件..."));
       await new Promise(r => setTimeout(r, 150));
       const decrypted = await decryptVault(importBackupData.encryptedPayload, key);
       const payload = JSON.parse(decrypted);
 
-      setImportDecryptProgress("📥 正在导入凭证数据...");
+      setImportDecryptProgress(t("📥 正在导入凭证数据..."));
       await new Promise(r => setTimeout(r, 150));
       const data = { vaultItems: payload.vaultItems || [], folders: payload.folders || [] };
       await importData(JSON.stringify(data), importStrategy);
 
       setIsImportDecrypting(false);
       setImportDecryptProgress("");
-      showToast("🎉 解密验证通过，成功恢复备份数据！");
+      showToast(t("🎉 解密验证通过，成功恢复备份数据！"));
 
       setShowImportPasswordModal(false);
       setImportBackupData(null);
@@ -954,7 +951,7 @@ export default function App() {
     } catch {
       setIsImportDecrypting(false);
       setImportDecryptProgress("");
-      setImportPasswordError("❌ 密码错误或备份文件已损坏，无法解密");
+      setImportPasswordError(t("❌ 密码错误或备份文件已损坏，无法解密"));
     }
   };
 
@@ -1046,7 +1043,7 @@ export default function App() {
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-3 rounded-md text-xs flex items-center justify-center space-x-1.5 transition-colors shadow-sm cursor-pointer"
                           >
                             <Plus className="w-4 h-4" />
-                            <span>新建凭证</span>
+                            <span>{t("新建凭证")}</span>
                           </button>
                           
                           <button
@@ -1056,7 +1053,7 @@ export default function App() {
                               setShowFolderModal(true);
                             }}
                             className="bg-white hover:bg-slate-100 text-slate-600 p-2 rounded-md border border-slate-200 transition-colors shadow-sm cursor-pointer"
-                            title="新建文件夹"
+                            title={t("新建文件夹")}
                           >
                             <FolderPlus className="w-3.5 h-3.5" />
                           </button>
@@ -1065,7 +1062,7 @@ export default function App() {
                         {/* Categories / Standard Folders */}
                         <div className="space-y-4 font-sans">
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5 px-2">常用视角</p>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5 px-2">{t("常用视角")}</p>
                             <div className="space-y-0.5">
                               <button
                                 onClick={() => { setSelectedFolder("all"); setSelectedItemType("all"); setSelectedItemId(null); setIsCreating(false); setIsEditing(false); }}
@@ -1077,7 +1074,7 @@ export default function App() {
                               >
                                 <span className="flex items-center space-x-2">
                                   <LockKeyholeOpen className="w-3.5 h-3.5" />
-                                  <span>所有本地条目</span>
+                                  <span>{t("所有本地条目")}</span>
                                 </span>
                                 <span className="text-[10px] bg-slate-200/60 text-slate-600 px-1.5 py-0.5 rounded font-mono">{vaultItems.length}</span>
                               </button>
@@ -1092,7 +1089,7 @@ export default function App() {
                               >
                                 <span className="flex items-center space-x-2">
                                   <Sparkles className="w-3.5 h-3.5" />
-                                  <span>星标收藏</span>
+                                  <span>{t("星标收藏")}</span>
                                 </span>
                                 <span className="text-[10px] bg-slate-200/60 text-slate-600 px-1.5 py-0.5 rounded font-mono">
                                   {vaultItems.filter(i => i.isFavorite).length}
@@ -1109,7 +1106,7 @@ export default function App() {
                               >
                                 <span className="flex items-center space-x-2">
                                   <KeyRound className="w-3.5 h-3.5" />
-                                  <span>智能密码生成器</span>
+                                  <span>{t("智能密码生成器")}</span>
                                 </span>
                               </button>
 
@@ -1123,7 +1120,7 @@ export default function App() {
                               >
                                 <span className="flex items-center space-x-2">
                                   <ShieldAlert className={`w-3.5 h-3.5 ${selectedFolder === "audit" ? "text-rose-600" : "text-slate-500 animate-pulse"}`} />
-                                  <span>安全智能审计</span>
+                                  <span>{t("安全智能审计")}</span>
                                 </span>
                                 {weakCount + reusedCount > 0 ? (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-rose-100 text-rose-800 animate-bounce">
@@ -1150,7 +1147,7 @@ export default function App() {
                               >
                                 <span className="flex items-center space-x-2">
                                   <Chrome className={`w-3.5 h-3.5 ${selectedFolder === "extension" ? "text-indigo-600" : ""}`} />
-                                  <span>浏览器插件包</span>
+                                  <span>{t("浏览器插件包")}</span>
                                 </span>
                               </button>
                             </div>
@@ -1158,13 +1155,13 @@ export default function App() {
 
                           {/* Types selector */}
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5 px-2">按模版过滤</p>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5 px-2">{t("按模版过滤")}</p>
                             <div className="space-y-0.5">
                               {[
-                                { id: "login", label: "常规账号", icon: User, textClass: "text-blue-700", bgClass: "bg-blue-50/70 border-l-2 border-blue-500", iconBg: "bg-blue-100 text-blue-600" },
-                                { id: "card", label: "虚拟卡券", icon: CreditCard, textClass: "text-emerald-700", bgClass: "bg-emerald-50/70 border-l-2 border-emerald-500", iconBg: "bg-emerald-100 text-emerald-600" },
-                                { id: "note", label: "安全备忘", icon: FileText, textClass: "text-sky-700", bgClass: "bg-sky-50/70 border-l-2 border-sky-500", iconBg: "bg-sky-100 text-sky-600" },
-                                { id: "identity", label: "密保资料", icon: FileCheck2, textClass: "text-amber-700", bgClass: "bg-amber-50/70 border-l-2 border-amber-500", iconBg: "bg-amber-100 text-amber-600" }
+                                { id: "login", label: t("常规账号"), icon: User, textClass: "text-blue-700", bgClass: "bg-blue-50/70 border-l-2 border-blue-500", iconBg: "bg-blue-100 text-blue-600" },
+                                { id: "card", label: t("虚拟卡券"), icon: CreditCard, textClass: "text-emerald-700", bgClass: "bg-emerald-50/70 border-l-2 border-emerald-500", iconBg: "bg-emerald-100 text-emerald-600" },
+                                { id: "note", label: t("安全备忘"), icon: FileText, textClass: "text-sky-700", bgClass: "bg-sky-50/70 border-l-2 border-sky-500", iconBg: "bg-sky-100 text-sky-600" },
+                                { id: "identity", label: t("密保资料"), icon: FileCheck2, textClass: "text-amber-700", bgClass: "bg-amber-50/70 border-l-2 border-amber-500", iconBg: "bg-amber-100 text-amber-600" }
                               ].map((t) => {
                                 const IconComp = t.icon;
                                 const isSelected = selectedItemType === t.id;
@@ -1195,7 +1192,7 @@ export default function App() {
 
                           {/* Folders List */}
                           <div>
-                            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5 px-2">自定义文件夹</p>
+                            <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5 px-2">{t("自定义文件夹")}</p>
                             <div className="space-y-0.5 max-h-52 overflow-y-auto overflow-x-hidden pr-1">
                               {folders.map((f) => {
                                 const isEditingFolder = editingFolderId === f.id;
@@ -1228,14 +1225,14 @@ export default function App() {
                                         <button
                                           onClick={() => handleRenameFolder(f.id, f.name, editingFolderName)}
                                           className="text-emerald-600 hover:text-emerald-700 p-0.5 rounded transition-colors cursor-pointer shrink-0"
-                                          title="保存"
+                                          title={t("保存")}
                                         >
                                           <Check className="w-3.5 h-3.5" />
                                         </button>
                                         <button
                                           onClick={() => setEditingFolderId(null)}
                                           className="text-slate-400 hover:text-slate-500 p-0.5 rounded transition-colors cursor-pointer shrink-0"
-                                          title="取消"
+                                          title={t("取消")}
                                         >
                                           <X className="w-3.5 h-3.5" />
                                         </button>
@@ -1256,14 +1253,14 @@ export default function App() {
                                               setEditingFolderName(f.name);
                                             }}
                                             className="text-slate-400 hover:text-indigo-600 transition-colors p-0.5 rounded cursor-pointer"
-                                            title="重命名"
+                                            title={t("重命名")}
                                           >
                                             <Edit3 className="w-3.5 h-3.5" />
                                           </button>
                                           <button 
                                             onClick={() => handleDeleteFolder(f.id, f.name)}
                                             className="text-slate-400 hover:text-rose-500 transition-colors p-0.5 rounded cursor-pointer"
-                                            title="删除文件夹"
+                                            title={t("删除文件夹")}
                                           >
                                             <Trash2 className="w-3.5 h-3.5" />
                                           </button>
@@ -1274,7 +1271,7 @@ export default function App() {
                                 );
                               })}
                               {folders.length === 0 && (
-                                <p className="text-[10px] text-slate-400 px-3.5 py-2 italic">暂无文件夹</p>
+                                <p className="text-[10px] text-slate-400 px-3.5 py-2 italic">{t("暂无文件夹")}</p>
                               )}
                             </div>
                           </div>
@@ -1303,14 +1300,14 @@ export default function App() {
                               <p className={`text-[10px] font-bold leading-none ${
                                 weakCount + reusedCount === 0 ? "text-emerald-800" : "text-amber-800"
                               }`}>
-                                {weakCount + reusedCount === 0 ? "安全状态：极佳" : "检测到安全隐患"}
+                                {weakCount + reusedCount === 0 ? t("安全状态：极佳") : t("检测到安全隐患")}
                               </p>
                               <p className={`text-[9px] mt-1 leading-none truncate ${
                                 weakCount + reusedCount === 0 ? "text-emerald-600" : "text-amber-600"
                               }`}>
-                                {weakCount + reusedCount === 0 
-                                  ? "无弱密码或复用漏洞" 
-                                  : `弱密码/复用计: ${weakCount + reusedCount} 项`}
+                                {weakCount + reusedCount === 0
+                                  ? t("无弱密码或复用漏洞")
+                                  : tf.weakReuseCount(weakCount + reusedCount)}
                               </p>
                             </div>
                           </div>
@@ -1318,7 +1315,7 @@ export default function App() {
                           <div className={`text-[9px] font-bold flex items-center shrink-0 ${
                             weakCount + reusedCount === 0 ? "text-emerald-600" : "text-amber-700"
                           }`}>
-                            <span>智能审计</span>
+                            <span>{t("智能审计")}</span>
                             <ChevronRight className="w-2.5 h-2.5 ml-0.5 group-hover:translate-x-0.5 transition-transform" />
                           </div>
                         </div>
@@ -1333,7 +1330,7 @@ export default function App() {
                                 ? "bg-indigo-50 border-indigo-200 text-indigo-600"
                                 : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
                             }`}
-                            title="打开设置中心"
+                            title={t("打开设置中心")}
                           >
                             <Settings className="w-3.5 h-3.5 animate-spin-hover" />
                           </button>
@@ -1342,10 +1339,10 @@ export default function App() {
                             type="button"
                             onClick={handleLockVault}
                             className="flex-1 text-rose-600 hover:bg-rose-50 hover:text-rose-700 py-1.5 rounded-lg transition-colors text-[10px] font-bold flex items-center justify-center space-x-1.5 border border-rose-200 cursor-pointer shadow-sm bg-white"
-                            title="立即锁定保险箱"
+                            title={t("立即锁定保险箱")}
                           >
                             <Lock className="w-3 h-3" />
-                            <span>立即锁定保险箱</span>
+                            <span>{t("立即锁定保险箱")}</span>
                           </button>
                         </div>
                       </div>
@@ -1368,7 +1365,7 @@ export default function App() {
                             <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400" />
                             <input
                               type="text"
-                              placeholder="搜索安全密盒标题、登录账号、网址、自定义分类..."
+                              placeholder={t("搜索安全密盒标题、登录账号、网址、自定义分类...")}
                               value={searchQuery}
                               onChange={(e) => setSearchQuery(e.target.value)}
                               className="w-full bg-white pl-10 pr-12 py-3 text-xs rounded-xl border border-slate-200/80 shadow-sm outline-none focus:border-blue-500 text-slate-800 font-semibold transition-all focus:shadow-md"
@@ -1378,7 +1375,7 @@ export default function App() {
                                 onClick={() => setSearchQuery("")}
                                 className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 text-xs font-bold font-sans cursor-pointer"
                               >
-                                清除
+                                {t("清除")}
                               </button>
                             )}
                           </div>
@@ -1393,8 +1390,8 @@ export default function App() {
                               <div className="p-4 bg-white rounded-2xl mb-3.5 border border-slate-200/80 shadow-sm">
                                 <KeyRound className="w-7 h-7 text-slate-400" />
                               </div>
-                              <h4 className="text-sm font-bold text-slate-700">未发现匹配的安全凭证</h4>
-                              <p className="text-xs text-slate-400 max-w-xs mt-1">您可以调整搜索过滤词，或点击左上角的「新建凭证」开始录入加密项。</p>
+                              <h4 className="text-sm font-bold text-slate-700">{t("未发现匹配的安全凭证")}</h4>
+                              <p className="text-xs text-slate-400 max-w-xs mt-1">{t("您可以调整搜索过滤词，或点击左上角的「新建凭证」开始录入加密项。")}</p>
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1430,7 +1427,7 @@ export default function App() {
                                         {item.ignoreSecurityWarning ? (
                                           <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border leading-none shrink-0 bg-amber-50/80 border-amber-200/60 text-amber-600">
                                             <span className="w-1 h-1 rounded-full bg-amber-400 animate-pulse" />
-                                            <span>已忽略</span>
+                                            <span>{t("已忽略")}</span>
                                           </span>
                                         ) : (
                                           <span className={`inline-flex items-center space-x-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold border leading-none shrink-0 ${
@@ -1445,8 +1442,8 @@ export default function App() {
                                               item.strength === "medium" ? "bg-amber-500" : "bg-rose-500"
                                             }`} />
                                             <span>
-                                              {item.strength === "strong" ? "安全" :
-                                               item.strength === "medium" ? "中等" : "风险"}
+                                              {item.strength === "strong" ? t("安全") :
+                                               item.strength === "medium" ? t("中等") : t("风险")}
                                             </span>
                                           </span>
                                         )}
@@ -1459,16 +1456,16 @@ export default function App() {
                                       {item.expiresAt && (() => {
                                         const days = daysUntilExpiry(item.expiresAt);
                                         if (isExpired(item.expiresAt)) {
-                                          return <span className="shrink-0 text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">已过期</span>;
+                                          return <span className="shrink-0 text-[9px] font-bold bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded">{t("已过期")}</span>;
                                         }
                                         if (days <= 30) {
-                                          return <span className="shrink-0 text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">剩 {days} 天</span>;
+                                          return <span className="shrink-0 text-[9px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">{tf.daysLeftShort(days)}</span>;
                                         }
                                         return null;
                                       })()}
                                     </div>
                                     <p className="text-[11px] text-slate-500 truncate mt-1 font-mono font-medium max-w-full">
-                                      {item.username || item.cardName || item.identityName || "安全凭密备忘明细"}
+                                      {item.username || item.cardName || item.identityName || t("安全凭密备忘明细")}
                                     </p>
                                   </div>
 
@@ -1481,18 +1478,18 @@ export default function App() {
                                     <div className="flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                                       {item.username && (
                                         <button
-                                          onClick={(e) => { e.stopPropagation(); copyToClipboard(item.username || "", "账号"); }}
+                                          onClick={(e) => { e.stopPropagation(); copyToClipboard(item.username || "", t("账号")); }}
                                           className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-600 rounded border border-slate-200 transition-colors cursor-pointer"
-                                          title="复制账号"
+                                          title={t("复制账号")}
                                         >
                                           <User className="w-3 h-3" />
                                         </button>
                                       )}
                                       {item.password && (
                                         <button
-                                          onClick={(e) => { e.stopPropagation(); copyToClipboard(item.password || "", "密码"); }}
+                                          onClick={(e) => { e.stopPropagation(); copyToClipboard(item.password || "", t("密码")); }}
                                           className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-600 rounded border border-slate-200 transition-colors cursor-pointer"
-                                          title="复制密码"
+                                          title={t("复制密码")}
                                         >
                                           <Copy className="w-3 h-3" />
                                         </button>
@@ -1520,9 +1517,9 @@ export default function App() {
                               <Lock className="w-5 h-5 text-indigo-500 shrink-0" />
                               <div>
                                 <h3 className="text-xs font-bold text-slate-800 leading-tight">
-                                  {isCreating ? "新建安全凭证" : "编辑安全凭证"}
+                                  {isCreating ? t("新建安全凭证") : t("编辑安全凭证")}
                                 </h3>
-                                <p className="text-[10px] text-slate-400 mt-0.5">采用 AES-256-GCM 高强度本地对称物理扇区加密存储</p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{t("采用 AES-256-GCM 高强度本地对称物理扇区加密存储")}</p>
                               </div>
                             </div>
                             <div className="flex items-center space-x-1.5 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200 shrink-0 self-start md:self-auto">
@@ -1539,7 +1536,7 @@ export default function App() {
                               <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                             <h2 className="text-base font-bold text-slate-800 flex items-center space-x-2">
                               <Lock className="w-4 h-4 text-indigo-500" />
-                              <span>{isCreating ? "新建安全凭证" : "编辑安全凭证"}</span>
+                              <span>{isCreating ? t("新建安全凭证") : t("编辑安全凭证")}</span>
                             </h2>
                             <div className="flex space-x-2">
                               <button
@@ -1547,13 +1544,13 @@ export default function App() {
                                 onClick={() => { setIsCreating(false); setIsEditing(false); }}
                                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                               >
-                                取消
+                                {t("取消")}
                               </button>
                               <button
                                 type="submit"
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
                               >
-                                保存 (写入密盒)
+                                {t("保存 (写入密盒)")}
                               </button>
                             </div>
                           </div>
@@ -1561,13 +1558,13 @@ export default function App() {
                           {/* Quick model selector (Only during creation) */}
                           {isCreating && (
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5">选择安全模版类型</label>
+                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1.5">{t("选择安全模版类型")}</label>
                               <div className="grid grid-cols-4 gap-2">
                                 {[
-                                  { id: "login", label: "常规账号", icon: User, selectedStyle: "border-blue-500 bg-blue-50 text-blue-700" },
-                                  { id: "card", label: "虚拟卡券", icon: CreditCard, selectedStyle: "border-emerald-500 bg-emerald-50 text-emerald-700" },
-                                  { id: "note", label: "安全备忘", icon: FileText, selectedStyle: "border-sky-500 bg-sky-50 text-sky-700" },
-                                  { id: "identity", label: "密保资料", icon: FileCheck2, selectedStyle: "border-amber-500 bg-amber-50 text-amber-700" }
+                                  { id: "login", label: t("常规账号"), icon: User, selectedStyle: "border-blue-500 bg-blue-50 text-blue-700" },
+                                  { id: "card", label: t("虚拟卡券"), icon: CreditCard, selectedStyle: "border-emerald-500 bg-emerald-50 text-emerald-700" },
+                                  { id: "note", label: t("安全备忘"), icon: FileText, selectedStyle: "border-sky-500 bg-sky-50 text-sky-700" },
+                                  { id: "identity", label: t("密保资料"), icon: FileCheck2, selectedStyle: "border-amber-500 bg-amber-50 text-amber-700" }
                                 ].map((tab) => {
                                   const isSelected = formType === tab.id;
                                   return (
@@ -1596,18 +1593,18 @@ export default function App() {
                           <div className="space-y-4">
                             <div className="grid grid-cols-2 gap-4">
                               <div>
-                                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">凭证标题</label>
+                                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("凭证标题")}</label>
                                 <input
                                   type="text"
                                   required
                                   value={formTitle}
                                   onChange={(e) => setFormTitle(e.target.value)}
-                                  placeholder="如: Github 工作库, 主力建行卡"
+                                  placeholder={t("如: Github 工作库, 主力建行卡")}
                                   className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800"
                                 />
                               </div>
                               <div>
-                                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">归属文件夹分类</label>
+                                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("归属文件夹分类")}</label>
                                 <div className="relative">
                                   <button
                                     type="button"
@@ -1616,7 +1613,7 @@ export default function App() {
                                   >
                                     <div className="flex items-center space-x-2 truncate">
                                       <Folder className={`w-3.5 h-3.5 shrink-0 transition-colors ${formFolder === "未分类" ? "text-slate-400" : "text-indigo-500"}`} />
-                                      <span className="truncate">{formFolder}</span>
+                                      <span className="truncate">{t(formFolder)}</span>
                                     </div>
                                     <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform shrink-0 duration-200 ${isFormFolderDropdownOpen ? 'rotate-180 text-indigo-600' : ''}`} />
                                   </button>
@@ -1632,7 +1629,7 @@ export default function App() {
                                         >
                                           <div className="flex items-center space-x-2">
                                             <Folder className={`w-3.5 h-3.5 shrink-0 transition-colors ${formFolder === "未分类" ? "text-indigo-500" : "text-slate-400"}`} />
-                                            <span>未分类</span>
+                                            <span>{t("未分类")}</span>
                                           </div>
                                           {formFolder === "未分类" && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
                                         </button>
@@ -1661,30 +1658,30 @@ export default function App() {
                               <>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">账号/用户名</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("账号/用户名")}</label>
                                     <input
                                       type="text"
                                       value={formUsername}
                                       onChange={(e) => setFormUsername(e.target.value)}
-                                      placeholder="邮箱, 账号名或手机号"
+                                      placeholder={t("邮箱, 账号名或手机号")}
                                       className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800"
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">账户密码</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("账户密码")}</label>
                                     <div className="relative">
                                       <input
                                         type={showFormPassword ? "text" : "password"}
                                         value={formPassword}
                                         onChange={(e) => setFormPassword(e.target.value)}
-                                        placeholder="请输入或使用下发生成器"
+                                        placeholder={t("请输入或使用下发生成器")}
                                         className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg pl-3 pr-[104px] py-2 text-xs outline-none text-slate-800 font-mono"
                                       />
                                       <button
                                         type="button"
                                         onClick={() => setShowFormPassword(!showFormPassword)}
                                         className="absolute right-[68px] top-2.5 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
-                                        title={showFormPassword ? "隐藏密码" : "显示密码"}
+                                        title={showFormPassword ? t("隐藏密码") : t("显示密码")}
                                       >
                                         {showFormPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                       </button>
@@ -1695,17 +1692,17 @@ export default function App() {
                                           const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
                                           for(let i=0; i<16; i++) autoP += chars[secureRandomIndex(chars.length)];
                                           setFormPassword(autoP);
-                                          showToast("⚡ 已自动填入高强度新随机密码！");
+                                          showToast(t("⚡ 已自动填入高强度新随机密码！"));
                                         }}
                                         className="absolute right-1.5 top-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] px-2 py-1 rounded font-semibold"
                                       >
-                                        随机生成
+                                        {t("随机生成")}
                                       </button>
                                     </div>
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">网站 URL 地址</label>
+                                  <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("网站 URL 地址")}</label>
                                   <input
                                     type="text"
                                     value={formUrl}
@@ -1720,33 +1717,33 @@ export default function App() {
                             {formType === "card" && (
                               <>
                                 <div className="bg-blue-50/70 border border-blue-100 rounded-lg p-3 text-[11px] text-blue-700 leading-relaxed mb-4">
-                                  🔒 <strong>卡片资产安全贴士：</strong>建议仅用于存储游戏卡、App Store 充值券、平台代金券、会员卡或非核心虚拟卡号。出于账户资产防御安全考量，<strong>请勿记录</strong>借记卡取款密码、信用卡 CVV 码或敏感物理网银凭证。本系统 100% 纯本地离线加密运行。
+                                  🔒 <strong>{t("卡片资产安全贴士：")}</strong>{t("建议仅用于存储游戏卡、App Store 充值券、平台代金券、会员卡或非核心虚拟卡号。出于账户资产防御安全考量，")}<strong>{t("请勿记录")}</strong>{t("借记卡取款密码、信用卡 CVV 码或敏感物理网银凭证。本系统 100% 纯本地离线加密运行。")}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">资产登记所有人/姓名</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("资产登记所有人/姓名")}</label>
                                     <input
                                       type="text"
                                       value={formCardName}
                                       onChange={(e) => setFormCardName(e.target.value)}
-                                      placeholder="如: ZHANG SAN 或 常用称呼"
+                                      placeholder={t("如: ZHANG SAN 或 常用称呼")}
                                       className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800"
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">卡号 / 储值券密匙</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("卡号 / 储值券密匙")}</label>
                                     <input
                                       type="text"
                                       value={formCardNumber}
                                       onChange={(e) => setFormCardNumber(e.target.value)}
-                                      placeholder="请输入储值卡、礼品卡或会员卡号"
+                                      placeholder={t("请输入储值卡、礼品卡或会员卡号")}
                                       className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-mono"
                                     />
                                   </div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">有效期/保质期 (如适用)</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("有效期/保质期 (如适用)")}</label>
                                     <input
                                       type="text"
                                       value={formCardExpiry}
@@ -1756,12 +1753,12 @@ export default function App() {
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">备用辅助验证码 (非 CVV/CVC 密码)</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("备用辅助验证码 (非 CVV/CVC 密码)")}</label>
                                     <input
                                       type="text"
                                       value={formCardCvv}
                                       onChange={(e) => setFormCardCvv(e.target.value)}
-                                      placeholder="备用辅助说明或卡片附加特征码"
+                                      placeholder={t("备用辅助说明或卡片附加特征码")}
                                       className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-mono"
                                     />
                                   </div>
@@ -1772,21 +1769,21 @@ export default function App() {
                             {formType === "identity" && (
                               <>
                                 <div className="bg-blue-50/70 border border-blue-100 rounded-lg p-3 text-[11px] text-blue-700 leading-relaxed mb-4">
-                                  🔒 <strong>申诉绑定常用资料贴士：</strong>此模版旨在供您集中存放及便捷复制各站注册时填写的申诉验证密保、备用邮箱、联系手机或收货物理地址。<strong>本系统并非政务系统，绝不会要求上传、收集或上传</strong>您的物理身份证、护照等极度敏感的核心隐私证件照，100% 纯本地沙盒加密。
+                                  🔒 <strong>{t("申诉绑定常用资料贴士：")}</strong>{t("此模版旨在供您集中存放及便捷复制各站注册时填写的申诉验证密保、备用邮箱、联系手机或收货物理地址。")}<strong>{t("本系统并非政务系统，绝不会要求上传、收集或上传")}</strong>{t("您的物理身份证、护照等极度敏感的核心隐私证件照，100% 纯本地沙盒加密。")}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">常用登记姓名/代号</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("常用登记姓名/代号")}</label>
                                     <input
                                       type="text"
                                       value={formIdentityName}
                                       onChange={(e) => setFormIdentityName(e.target.value)}
-                                      placeholder="真实姓名或常用申诉网名"
+                                      placeholder={t("真实姓名或常用申诉网名")}
                                       className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800"
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">申诉或关联邮箱</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("申诉或关联邮箱")}</label>
                                     <input
                                       type="email"
                                       value={formIdentityEmail}
@@ -1798,7 +1795,7 @@ export default function App() {
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">注册/验证绑定手机号</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("注册/验证绑定手机号")}</label>
                                     <input
                                       type="text"
                                       value={formIdentityPhone}
@@ -1808,12 +1805,12 @@ export default function App() {
                                     />
                                   </div>
                                   <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">物理收货 / 申诉绑定地址</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("物理收货 / 申诉绑定地址")}</label>
                                     <input
                                       type="text"
                                       value={formIdentityAddress}
                                       onChange={(e) => setFormIdentityAddress(e.target.value)}
-                                      placeholder="省、市、区、常用收货或注册地"
+                                      placeholder={t("省、市、区、常用收货或注册地")}
                                       className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800"
                                     />
                                   </div>
@@ -1822,11 +1819,11 @@ export default function App() {
                             )}
 
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">安全备注及备忘记录 (支持明细)</label>
+                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("安全备注及备忘记录 (支持明细)")}</label>
                               <textarea
                                 value={formNotes}
                                 onChange={(e) => setFormNotes(e.target.value)}
-                                placeholder="输入该条目的备用说明、密保问题、二次恢复口令等重要明细..."
+                                placeholder={t("输入该条目的备用说明、密保问题、二次恢复口令等重要明细...")}
                                 rows={4}
                                 className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-sans"
                               />
@@ -1834,7 +1831,7 @@ export default function App() {
 
                             {/* TOTP 两步验证 */}
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">两步验证密钥 (TOTP) 可选</label>
+                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("两步验证密钥 (TOTP) 可选")}</label>
                               <input
                                 type="text"
                                 value={formOtpSecret}
@@ -1848,37 +1845,37 @@ export default function App() {
                                     setFormOtpSecret(v);
                                   }
                                 }}
-                                placeholder="粘贴 Base32 密钥或 otpauth:// 链接（如网站 2FA 设置页提供的密钥）"
+                                placeholder={t("粘贴 Base32 密钥或 otpauth:// 链接（如网站 2FA 设置页提供的密钥）")}
                                 className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-3 py-2 text-xs outline-none text-slate-800 font-mono"
                               />
                               <p className="text-[9px] text-slate-400 mt-1">
-                                ⚠️ 保险箱被攻破时验证码与密码将同时泄露——银行/邮箱等高价值账户建议使用独立验证器
+                                {t("⚠️ 保险箱被攻破时验证码与密码将同时泄露——银行/邮箱等高价值账户建议使用独立验证器")}
                               </p>
                             </div>
 
                             {/* 到期提醒 */}
                             <div>
-                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">到期提醒 (可选)</label>
+                              <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("到期提醒 (可选)")}</label>
                               <DatePicker value={formExpiresAt} onChange={setFormExpiresAt} />
-                              <p className="text-[9px] text-slate-400 mt-1">适用于卡券有效期、证书过期日等时间敏感条目</p>
+                              <p className="text-[9px] text-slate-400 mt-1">{t("适用于卡券有效期、证书过期日等时间敏感条目")}</p>
                             </div>
 
                             {/* 自定义字段 */}
                             <div>
                               <div className="flex items-center justify-between mb-1">
-                                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase">自定义字段 (可选)</label>
+                                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase">{t("自定义字段 (可选)")}</label>
                                 <button
                                   type="button"
                                   onClick={() => setFormCustomFields(prev => [...prev, { key: "", value: "" }])}
                                   className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 flex items-center space-x-1 cursor-pointer"
                                 >
                                   <Plus className="w-3 h-3" />
-                                  <span>添加字段</span>
+                                  <span>{t("添加字段")}</span>
                                 </button>
                               </div>
                               {formCustomFields.length === 0 ? (
                                 <p className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 border-dashed rounded-lg px-3 py-2">
-                                  存储标准字段之外的附加信息（如备用邮箱、PIN 码、服务器地址等）
+                                  {t("存储标准字段之外的附加信息（如备用邮箱、PIN 码、服务器地址等）")}
                                 </p>
                               ) : (
                                 <div className="space-y-1.5">
@@ -1886,14 +1883,14 @@ export default function App() {
                                     <div key={idx} className="flex items-center space-x-2">
                                       <input
                                         type="text"
-                                        placeholder="字段名"
+                                        placeholder={t("字段名")}
                                         value={f.key}
                                         onChange={(e) => setFormCustomFields(prev => prev.map((x, i) => i === idx ? { ...x, key: e.target.value } : x))}
                                         className="w-1/3 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-2.5 py-1.5 text-xs outline-none text-slate-800"
                                       />
                                       <input
                                         type="text"
-                                        placeholder="字段值"
+                                        placeholder={t("字段值")}
                                         value={f.value}
                                         onChange={(e) => setFormCustomFields(prev => prev.map((x, i) => i === idx ? { ...x, value: e.target.value } : x))}
                                         className="flex-1 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-2.5 py-1.5 text-xs outline-none text-slate-800"
@@ -1902,7 +1899,7 @@ export default function App() {
                                         type="button"
                                         onClick={() => setFormCustomFields(prev => prev.filter((_, i) => i !== idx))}
                                         className="text-slate-400 hover:text-rose-500 transition-colors p-1 cursor-pointer shrink-0"
-                                        title="删除字段"
+                                        title={t("删除字段")}
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </button>
@@ -1924,8 +1921,8 @@ export default function App() {
                             <div className="flex items-center space-x-2 text-left">
                               <Settings className="w-5 h-5 text-indigo-600 shrink-0" />
                               <div>
-                                <h3 className="text-xs font-bold text-slate-800 leading-tight">保险箱高级设置中心</h3>
-                                <p className="text-[10px] text-slate-400 mt-0.5">零知识本端物理备份、本端数据导入与恢复</p>
+                                <h3 className="text-xs font-bold text-slate-800 leading-tight">{t("保险箱高级设置中心")}</h3>
+                                <p className="text-[10px] text-slate-400 mt-0.5">{t("零知识本端物理备份、本端数据导入与恢复")}</p>
                               </div>
                             </div>
                           </div>
@@ -1939,10 +1936,10 @@ export default function App() {
                                 <div className="border-b border-slate-100 pb-4">
                                   <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
                                     <FileSpreadsheet className="w-4 h-4 text-indigo-500" />
-                                    <span>数据备份、恢复与本地导入导出</span>
+                                    <span>{t("数据备份、恢复与本地导入导出")}</span>
                                   </h4>
                                   <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                                    此密盒由完全离线物理沙盒驱动，所有数据均存储在本地。为了防止使用应用的设备丢失或损坏造成数据丢失，请务必定期导出物理备份文件。
+                                    {t("此密盒由完全离线物理沙盒驱动，所有数据均存储在本地。为了防止使用应用的设备丢失或损坏造成数据丢失，请务必定期导出物理备份文件。")}
                                   </p>
                                 </div>
 
@@ -1953,10 +1950,10 @@ export default function App() {
                                     <div className="space-y-4">
                                       <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
                                         <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                        <span>导出本端物理备份 (JSON格式)</span>
+                                        <span>{t("导出本端物理备份 (JSON格式)")}</span>
                                       </h5>
                                       <p className="text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200/50">
-                                        📥 该文件包含当前保险箱内所有的<b>分类文件夹目录</b>与<b>凭证记录明细</b>。密文物理对齐本地密钥后，导出为解密的标准 JSON 文件，请安全离线保存该备份。
+                                        {t("📥 该文件包含当前保险箱内所有的")}<b>{t("分类文件夹目录")}</b>{t("与")}<b>{t("凭证记录明细")}</b>{t("。密文物理对齐本地密钥后，导出为解密的标准 JSON 文件，请安全离线保存该备份。")}
                                       </p>
                                     </div>
                                     <div className="pt-4">
@@ -1966,7 +1963,7 @@ export default function App() {
                                         className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center space-x-2 cursor-pointer font-sans"
                                       >
                                         <Download className="w-4 h-4" />
-                                        <span>一键导出保险箱物理备份</span>
+                                        <span>{t("一键导出保险箱物理备份")}</span>
                                       </button>
                                     </div>
                                   </div>
@@ -1976,7 +1973,7 @@ export default function App() {
                                     <div className="space-y-4">
                                       <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
                                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                                        <span>从物理备份恢复 / 合并导入</span>
+                                        <span>{t("从物理备份恢复 / 合并导入")}</span>
                                       </h5>
 
                                       {/* Strategy Select */}
@@ -1990,7 +1987,7 @@ export default function App() {
                                               : "text-slate-500 hover:text-slate-800"
                                           }`}
                                         >
-                                          合并导入 (不覆盖现有凭证)
+                                          {t("合并导入 (不覆盖现有凭证)")}
                                         </button>
                                         <button
                                           type="button"
@@ -2001,7 +1998,7 @@ export default function App() {
                                               : "text-slate-500 hover:text-rose-500"
                                           }`}
                                         >
-                                          覆盖导入 (清空并完全替换)
+                                          {t("覆盖导入 (清空并完全替换)")}
                                         </button>
                                       </div>
                                     </div>
@@ -2015,7 +2012,7 @@ export default function App() {
                                       >
                                         <div className="flex items-center justify-center space-x-1.5">
                                           <Upload className="w-3.5 h-3.5 text-slate-400 group-hover:scale-110 transition-transform shrink-0" />
-                                          <span className="text-[10px] font-bold text-slate-600">点击选择备份 JSON 文件</span>
+                                          <span className="text-[10px] font-bold text-slate-600">{t("点击选择备份 JSON 文件")}</span>
                                         </div>
                                       </button>
                                     </div>
@@ -2026,10 +2023,10 @@ export default function App() {
                                     <div className="space-y-4">
                                       <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
                                         <FileKey className="w-3.5 h-3.5 text-amber-600" />
-                                        <span>导出 KeePass (.kdbx)</span>
+                                        <span>{t("导出 KeePass (.kdbx)")}</span>
                                       </h5>
                                       <p className="text-[10px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200/50">
-                                        📤 导出为 KeePass 标准数据库格式，可使用 KeePass / KeePassXC 等任何 KeePass 生态客户端打开，方便随时迁移。
+                                        {t("📤 导出为 KeePass 标准数据库格式，可使用 KeePass / KeePassXC 等任何 KeePass 生态客户端打开，方便随时迁移。")}
                                       </p>
                                     </div>
                                     <div className="pt-4">
@@ -2039,7 +2036,7 @@ export default function App() {
                                         className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center space-x-2 cursor-pointer font-sans"
                                       >
                                         <FileKey className="w-4 h-4" />
-                                        <span>导出 KeePass 数据库</span>
+                                        <span>{t("导出 KeePass 数据库")}</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2049,10 +2046,10 @@ export default function App() {
                                     <div className="space-y-4">
                                       <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
                                         <DatabaseBackup className="w-3.5 h-3.5 text-emerald-600" />
-                                        <span>导入 KeePass (.kdbx)</span>
+                                        <span>{t("导入 KeePass (.kdbx)")}</span>
                                       </h5>
                                       <p className="text-[10px] text-slate-500 leading-relaxed">
-                                        📥 支持从 KeePass / KeePassXC 导出的 KDBX 文件迁移凭证，需输入该文件的密码。
+                                        {t("📥 支持从 KeePass / KeePassXC 导出的 KDBX 文件迁移凭证，需输入该文件的密码。")}
                                       </p>
                                     </div>
                                     <div className="pt-4">
@@ -2062,7 +2059,7 @@ export default function App() {
                                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md flex items-center justify-center space-x-2 cursor-pointer font-sans"
                                       >
                                         <DatabaseBackup className="w-4 h-4" />
-                                        <span>选择 KDBX 文件导入</span>
+                                        <span>{t("选择 KDBX 文件导入")}</span>
                                       </button>
                                     </div>
                                   </div>
@@ -2078,9 +2075,9 @@ export default function App() {
                                     <div>
                                       <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
                                         <Globe className="w-3.5 h-3.5 text-indigo-500" />
-                                        <span>导入外部密码</span>
+                                        <span>{t("导入外部密码")}</span>
                                       </h5>
-                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">支持 Chrome/Edge/Firefox/1Password/LastPass/Bitwarden/Safari 的 CSV 或 JSON 文件。</p>
+                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{t("支持 Chrome/Edge/Firefox/1Password/LastPass/Bitwarden/Safari 的 CSV 或 JSON 文件。")}</p>
                                     </div>
                                     <button
                                       type="button"
@@ -2088,7 +2085,7 @@ export default function App() {
                                       className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2 rounded-lg transition shadow-sm flex items-center justify-center space-x-1.5 cursor-pointer font-sans"
                                     >
                                       <Globe className="w-3.5 h-3.5" />
-                                      <span>选择密码文件</span>
+                                      <span>{t("选择密码文件")}</span>
                                     </button>
                                   </div>
 
@@ -2097,9 +2094,9 @@ export default function App() {
                                     <div>
                                       <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
                                         <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                                        <span>自动锁定</span>
+                                        <span>{t("自动锁定")}</span>
                                       </h5>
-                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">超时后自动擦除内存中的密钥。</p>
+                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{t("超时后自动擦除内存中的密钥。")}</p>
                                     </div>
                                     <div className="relative">
                                       <button type="button" onClick={() => setAutoLockOpen(!autoLockOpen)}
@@ -2112,9 +2109,9 @@ export default function App() {
                                           <div className="fixed inset-0 z-10 cursor-default" onClick={() => setAutoLockOpen(false)} />
                                           <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200/90 rounded-lg shadow-lg py-1 z-20">
                                             {[0, 1, 5, 15, 30, 60].map(val => (
-                                              <button key={val} type="button" onClick={() => { setAutoLockTimeout(val); setAutoLockOpen(false); showToast(`🔒 自动锁定超时已设置为: ${getTimeoutLabel(val)}`); }}
+                                              <button key={val} type="button" onClick={() => { setAutoLockTimeout(val); setAutoLockOpen(false); showToast(tf.autoLockSet(getTimeoutLabel(val))); }}
                                                 className={`w-full text-left px-2.5 py-1.5 text-[11px] flex items-center justify-between transition-colors cursor-pointer ${autoLockTimeout === val ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-50"}`}>
-                                                <span>{val === 0 ? "从不锁定 (不推荐)" : `${getTimeoutLabel(val)}`}</span>
+                                                <span>{val === 0 ? t("从不锁定 (不推荐)") : getTimeoutLabel(val)}</span>
                                                 {autoLockTimeout === val && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                                               </button>
                                             ))}
@@ -2131,10 +2128,10 @@ export default function App() {
                                 <div className="border-b border-slate-100 pb-4">
                                   <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
                                     <KeyRound className="w-4 h-4 text-indigo-500" />
-                                    <span>修改主密码</span>
+                                    <span>{t("修改主密码")}</span>
                                   </h4>
                                   <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                                    验证旧密码后即可更换新主密码，可选切换 KDF 算法。保险箱数据将用新密码重新加密保存。
+                                    {t("验证旧密码后即可更换新主密码，可选切换 KDF 算法。保险箱数据将用新密码重新加密保存。")}
                                   </p>
                                 </div>
 
@@ -2144,12 +2141,12 @@ export default function App() {
                                     onClick={() => setShowChangePassword(true)}
                                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs py-2.5 rounded-xl transition shadow-md cursor-pointer font-sans"
                                   >
-                                    修改主密码
+                                    {t("修改主密码")}
                                   </button>
                                 ) : (
                                   <form onSubmit={handleChangePassword} className="space-y-3" noValidate>
                                     <div>
-                                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">旧主密码</label>
+                                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("旧主密码")}</label>
                                       <div className="relative">
                                         <input type={showChangePwOld ? "text" : "password"} required value={changePwOld}
                                           onChange={(e) => { setChangePwOld(e.target.value); setChangePwError(""); }}
@@ -2157,14 +2154,14 @@ export default function App() {
                                         <button type="button"
                                           onClick={() => setShowChangePwOld(!showChangePwOld)}
                                           className="absolute right-2 top-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                                          title={showChangePwOld ? "隐藏" : "显示"}>
+                                          title={showChangePwOld ? t("隐藏") : t("显示")}>
                                           {showChangePwOld ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                         </button>
                                       </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
                                       <div>
-                                        <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">新主密码（≥8位）</label>
+                                        <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("新主密码（≥8位）")}</label>
                                         <div className="relative">
                                           <input type={showChangePwNew ? "text" : "password"} required value={changePwNew}
                                             onChange={(e) => { setChangePwNew(e.target.value); setChangePwError(""); }}
@@ -2172,13 +2169,13 @@ export default function App() {
                                           <button type="button"
                                             onClick={() => setShowChangePwNew(!showChangePwNew)}
                                             className="absolute right-2 top-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                                            title={showChangePwNew ? "隐藏" : "显示"}>
+                                            title={showChangePwNew ? t("隐藏") : t("显示")}>
                                             {showChangePwNew ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                           </button>
                                         </div>
                                       </div>
                                       <div>
-                                        <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">确认新密码</label>
+                                        <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("确认新密码")}</label>
                                         <div className="relative">
                                           <input type={showChangePwConfirm ? "text" : "password"} required value={changePwConfirm}
                                             onChange={(e) => { setChangePwConfirm(e.target.value); setChangePwError(""); }}
@@ -2186,20 +2183,20 @@ export default function App() {
                                           <button type="button"
                                             onClick={() => setShowChangePwConfirm(!showChangePwConfirm)}
                                             className="absolute right-2 top-2 text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
-                                            title={showChangePwConfirm ? "隐藏" : "显示"}>
+                                            title={showChangePwConfirm ? t("隐藏") : t("显示")}>
                                             {showChangePwConfirm ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                                           </button>
                                         </div>
                                       </div>
                                     </div>
                                     <div>
-                                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">加密算法</label>
+                                      <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("加密算法")}</label>
                                       <div className="relative">
                                         <button type="button" onClick={() => setChangePwKdfOpen(!changePwKdfOpen)}
                                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-700 outline-none focus:border-indigo-500 cursor-pointer flex items-center justify-between transition-all">
                                           <span className="flex items-center space-x-1.5 font-semibold text-slate-800">
                                             <span className="text-sm shrink-0">{changePwNewKdf === "argon2id" ? "🛡️" : "⚙️"}</span>
-                                            <span>{changePwNewKdf === "argon2id" ? "Argon2id（推荐，抗GPU）" : "PBKDF2-SHA256（10万次）"}</span>
+                                            <span>{changePwNewKdf === "argon2id" ? t("Argon2id（推荐，抗GPU）") : t("PBKDF2-SHA256（10万次）")}</span>
                                           </span>
                                           <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${changePwKdfOpen ? "rotate-180 text-indigo-500" : ""}`} />
                                         </button>
@@ -2211,7 +2208,7 @@ export default function App() {
                                                 <button key={k} type="button" onClick={() => { setChangePwNewKdf(k); setChangePwKdfOpen(false); }}
                                                   className={`w-full text-left px-3 py-2 text-xs flex items-center space-x-2 transition-colors cursor-pointer ${changePwNewKdf === k ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-50"}`}>
                                                   <span className="text-sm shrink-0">{k === "argon2id" ? "🛡️" : "⚙️"}</span>
-                                                  <span className="flex-1 truncate">{k === "argon2id" ? "Argon2id（推荐，抗GPU）" : "PBKDF2-SHA256（10万次）"}</span>
+                                                  <span className="flex-1 truncate">{k === "argon2id" ? t("Argon2id（推荐，抗GPU）") : t("PBKDF2-SHA256（10万次）")}</span>
                                                   {changePwNewKdf === k && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                                                 </button>
                                               ))}
@@ -2227,16 +2224,16 @@ export default function App() {
                                       {!isChangingPw && (
                                         <button type="button"
                                           onClick={() => { setShowChangePassword(false); setShowChangePwOld(false); setShowChangePwNew(false); setShowChangePwConfirm(false); setChangePwError(""); }}
-                                          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition-colors cursor-pointer">取消</button>
+                                          className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs py-2 rounded-lg transition-colors cursor-pointer">{t("取消")}</button>
                                       )}
                                       <button type="submit" disabled={isChangingPw}
                                         className={`flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-500 text-white font-bold text-xs py-2 rounded-lg transition-all shadow-sm cursor-pointer ${isChangingPw ? "flex-[2]" : ""}`}>
                                         {isChangingPw ? (
                                           <span className="flex items-center justify-center space-x-1.5">
                                             <RefreshCw className="w-3 h-3 animate-spin" />
-                                            <span>{changePwProgress || "正在处理..."}</span>
+                                            <span>{changePwProgress || t("正在处理...")}</span>
                                           </span>
-                                        ) : "确认修改"}
+                                        ) : t("确认修改")}
                                       </button>
                                     </div>
                                   </form>
@@ -2261,7 +2258,7 @@ export default function App() {
                           onStartAudit={handleStartAudit}
                           onFixItem={handleFixVulnerableItem}
                           onToggleIgnore={toggleIgnoreWarning}
-                          onCopyPassword={(p) => copyToClipboard(p, "密码")}
+                          onCopyPassword={(p) => copyToClipboard(p, t("密码"))}
                         />
                       ) : selectedItem ? (
                         <CredentialDetail
@@ -2323,20 +2320,20 @@ export default function App() {
                       <div className="flex items-center space-x-2">
                         <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></div>
                         <p className="leading-none truncate">
-                          <span className="font-bold text-slate-700">100% 纯本地离线安全沙箱</span>
+                          <span className="font-bold text-slate-700">{t("100% 纯本地离线安全沙箱")}</span>
                           <span className="text-slate-300 mx-2">|</span>
-                          <span className="text-slate-500">所有凭证经高强度算法本端加密存储，支持完全断网独立运行。</span>
+                          <span className="text-slate-500">{t("所有凭证经高强度算法本端加密存储，支持完全断网独立运行。")}</span>
                         </p>
                       </div>
                       
                       <div className="flex items-center space-x-5 font-mono text-[9px] shrink-0 text-slate-400 self-end md:self-auto">
                         <div>
-                          <span className="text-slate-500 font-bold">物理派生：</span>
+                          <span className="text-slate-500 font-bold">{t("物理派生：")}</span>
                           <span>{selectedKdf === "argon2id" ? "Argon2id (64MB)" : "PBKDF2-HMAC-SHA256"}</span>
                         </div>
                         <div>
-                          <span className="text-slate-500 font-bold">加密算法：</span>
-                          <span>{masterKey ? "AES-256-GCM 硬件级" : "未派生"}</span>
+                          <span className="text-slate-500 font-bold">{t("加密算法：")}</span>
+                          <span>{masterKey ? t("AES-256-GCM 硬件级") : t("未派生")}</span>
                         </div>
                       </div>
                     </div>
@@ -2351,15 +2348,15 @@ export default function App() {
       {showFolderModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm">
           <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-sm w-full shadow-2xl relative font-sans">
-            <h3 className="text-sm font-bold text-slate-900 mb-1">新建本地分类文件夹</h3>
-            <p className="text-[11px] text-slate-500 mb-4">创建后，您的密码项可直接归入此类文件夹做密文聚合分类。</p>
+            <h3 className="text-sm font-bold text-slate-900 mb-1">{t("新建本地分类文件夹")}</h3>
+            <p className="text-[11px] text-slate-500 mb-4">{t("创建后，您的密码项可直接归入此类文件夹做密文聚合分类。")}</p>
             
             <form onSubmit={handleAddFolder} noValidate className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">分类名称</label>
+                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("分类名称")}</label>
                 <input
                   type="text"
-                  placeholder="如: 服务器密钥, 临时网购账户"
+                  placeholder={t("如: 服务器密钥, 临时网购账户")}
                   value={newFolderName}
                   onChange={(e) => {
                     setNewFolderName(e.target.value);
@@ -2386,13 +2383,13 @@ export default function App() {
                   onClick={() => setShowFolderModal(false)}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors"
                 >
-                  取消
+                  {t("取消")}
                 </button>
                 <button
                   type="submit"
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors shadow-sm"
                 >
-                  确认新建
+                  {t("确认新建")}
                 </button>
               </div>
             </form>
@@ -2406,18 +2403,18 @@ export default function App() {
           <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-sm w-full shadow-2xl relative font-sans">
             <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center space-x-2">
               <DatabaseBackup className="w-4 h-4 text-emerald-600" />
-              <span>导入 KeePass 数据库</span>
+              <span>{t("导入 KeePass 数据库")}</span>
             </h3>
             <p className="text-[11px] text-slate-500 mb-4">
-              请输入该 <b>.kdbx</b> 文件的密码进行解密（与 SecureVault 主密码无关）。
+              {t("请输入该")} <b>.kdbx</b> {t("文件的密码进行解密（与 SecureVault 主密码无关）。")}
             </p>
 
             <form onSubmit={handleKdbxImportPasswordSubmit} noValidate className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">KDBX 文件密码</label>
+                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("KDBX 文件密码")}</label>
                 <input
                   type="password"
-                  placeholder="输入 KDBX 文件密码"
+                  placeholder={t("输入 KDBX 文件密码")}
                   value={kdbxImportPassword}
                   onChange={(e) => {
                     setKdbxImportPassword(e.target.value);
@@ -2450,7 +2447,7 @@ export default function App() {
                   }}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                 >
-                  取消
+                  {t("取消")}
                 </button>
                 <button
                   type="submit"
@@ -2460,12 +2457,12 @@ export default function App() {
                   {isKdbxImporting ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>解密中...</span>
+                      <span>{t("解密中...")}</span>
                     </>
                   ) : (
                     <>
                       <DatabaseBackup className="w-3.5 h-3.5" />
-                      <span>解密并预览</span>
+                      <span>{t("解密并预览")}</span>
                     </>
                   )}
                 </button>
@@ -2481,18 +2478,18 @@ export default function App() {
           <div className="bg-white rounded-xl border border-slate-200 p-6 max-w-sm w-full shadow-2xl relative font-sans">
             <h3 className="text-sm font-bold text-slate-900 mb-1 flex items-center space-x-2">
               <FileKey className="w-4 h-4 text-amber-600" />
-              <span>导出 KeePass 数据库</span>
+              <span>{t("导出 KeePass 数据库")}</span>
             </h3>
             <p className="text-[11px] text-slate-500 mb-4">
-              设置该 KDBX 文件的独立密码，<b>请务必牢记</b>——KeePass 生态客户端（KeePass / KeePassXC）打开此文件时需要它。
+              {t("设置该 KDBX 文件的独立密码，")}<b>{t("请务必牢记")}</b>{t("——KeePass 生态客户端（KeePass / KeePassXC）打开此文件时需要它。")}
             </p>
 
             <form onSubmit={handleKdbxExportConfirm} noValidate className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">KDBX 密码</label>
+                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("KDBX 密码")}</label>
                 <input
                   type="password"
-                  placeholder="至少 4 位"
+                  placeholder={t("至少 4 位")}
                   value={kdbxExportPassword}
                   onChange={(e) => {
                     setKdbxExportPassword(e.target.value);
@@ -2503,10 +2500,10 @@ export default function App() {
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">确认密码</label>
+                <label className="block text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-1">{t("确认密码")}</label>
                 <input
                   type="password"
-                  placeholder="再次输入 KDBX 密码"
+                  placeholder={t("再次输入 KDBX 密码")}
                   value={kdbxExportConfirm}
                   onChange={(e) => {
                     setKdbxExportConfirm(e.target.value);
@@ -2538,7 +2535,7 @@ export default function App() {
                   }}
                   className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
                 >
-                  取消
+                  {t("取消")}
                 </button>
                 <button
                   type="submit"
@@ -2548,12 +2545,12 @@ export default function App() {
                   {isKdbxExporting ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>导出中...</span>
+                      <span>{t("导出中...")}</span>
                     </>
                   ) : (
                     <>
                       <FileKey className="w-3.5 h-3.5" />
-                      <span>选择位置并导出</span>
+                      <span>{t("选择位置并导出")}</span>
                     </>
                   )}
                 </button>

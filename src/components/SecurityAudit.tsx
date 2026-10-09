@@ -2,6 +2,7 @@
 
 import React from "react";
 import { ShieldAlert, ShieldCheck, RefreshCw, AlertTriangle, Copy, EyeOff } from "lucide-react";
+import { t, tf } from "../i18n";
 
 export interface SecurityAuditProps {
   isAuditScanning: boolean;
@@ -47,8 +48,8 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
         <div className="flex items-center space-x-2 text-left">
           <ShieldAlert className="w-5 h-5 text-rose-600 animate-pulse shrink-0" />
           <div>
-            <h3 className="text-xs font-bold text-slate-800 leading-tight">保险箱本地多维安全审计智库</h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">依据零知识协议进行本地哈希指纹对齐与热力学熵值解算</p>
+            <h3 className="text-xs font-bold text-slate-800 leading-tight">{t("保险箱本地多维安全审计智库")}</h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">{t("依据零知识协议进行本地哈希指纹对齐与热力学熵值解算")}</p>
           </div>
         </div>
         <div className="flex items-center space-x-1.5 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 shrink-0 self-start md:self-auto">
@@ -66,15 +67,15 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
               <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-indigo-100 shadow-inner">
                 <ShieldAlert className="w-8 h-8 animate-pulse text-indigo-500" />
               </div>
-              <h3 className="text-sm font-bold text-slate-800 mb-1.5">准备执行全库深度密码防泄漏审计</h3>
+              <h3 className="text-sm font-bold text-slate-800 mb-1.5">{t("准备执行全库深度密码防泄漏审计")}</h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mb-6 leading-relaxed">
-                通过分析密码特征库、熵值解算、以及哈希前缀的本地 K-Anonymity 安全数据库进行多级审计。
+                {t("通过分析密码特征库、熵值解算、以及哈希前缀的本地 K-Anonymity 安全数据库进行多级审计。")}
               </p>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-left mb-8 max-w-lg mx-auto">
                 {[
-                  { title: "1. 弱密码检测", desc: "计算 Shannon 物理熵，精准拦截低熵值破译凭证。" },
-                  { title: "2. 密码复用碰撞", desc: "检索本地数据库对齐指纹，筛查一密多用等撞库风险条目。" },
-                  { title: "3. 已泄漏特征碰撞", desc: "多重对齐公共泄露数据库，精准定位高危泄露账户凭证。" },
+                  { title: t("1. 弱密码检测"), desc: t("计算 Shannon 物理熵，精准拦截低熵值破译凭证。") },
+                  { title: t("2. 密码复用碰撞"), desc: t("检索本地数据库对齐指纹，筛查一密多用等撞库风险条目。") },
+                  { title: t("3. 已泄漏特征碰撞"), desc: t("多重对齐公共泄露数据库，精准定位高危泄露账户凭证。") },
                 ].map(c => (
                   <div key={c.title} className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
                     <span className="text-xs font-bold text-slate-700 block mb-1">{c.title}</span>
@@ -84,7 +85,7 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
               </div>
               <button type="button" onClick={onStartAudit}
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-6 py-3 rounded-xl transition shadow-md inline-flex items-center space-x-2 cursor-pointer font-sans">
-                <ShieldCheck className="w-4 h-4" /><span>开启一键全库深度安全审计</span>
+                <ShieldCheck className="w-4 h-4" /><span>{t("开启一键全库深度安全审计")}</span>
               </button>
             </div>
           ) : isAuditScanning ? (
@@ -95,8 +96,8 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
                   <RefreshCw className="w-6 h-6 animate-spin" />
                 </div>
               </div>
-              <h3 className="text-sm font-bold text-slate-800 mb-1.5">正在执行本地安全审计...</h3>
-              <p className="text-xs text-slate-400">基于密码强度、复用检测和熵值分析进行诊断</p>
+              <h3 className="text-sm font-bold text-slate-800 mb-1.5">{t("正在执行本地安全审计...")}</h3>
+              <p className="text-xs text-slate-400">{t("基于密码强度、复用检测和熵值分析进行诊断")}</p>
             </div>
           ) : (
             <>
@@ -113,57 +114,57 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
                     </svg>
                     <div className="absolute flex flex-col items-center">
                       <span className="text-2xl font-black font-sans tracking-tight text-slate-800">{score}</span>
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">密码库评分</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wide">{t("密码库评分")}</span>
                     </div>
                   </div>
                   <p className={`text-xs font-bold mt-3 ${score >= 80 ? "text-emerald-600" : score >= 55 ? "text-amber-600" : "text-rose-600"}`}>
-                    {score >= 80 ? "密文健康度：极为安全" : score >= 55 ? "密文健康度：存在隐患" : "密文健康度：极其危险"}
+                    {score >= 80 ? t("密文健康度：极为安全") : score >= 55 ? t("密文健康度：存在隐患") : t("密文健康度：极其危险")}
                   </p>
                 </div>
                 <div className="md:col-span-2 space-y-4">
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">全库诊断摘要统计</h3>
+                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{t("全库诊断摘要统计")}</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <StatBox label="本地总资产条目" value={`${totalCount} 个`} />
-                    <StatBox label="弱密码条目" value={`${weakCount} 个`} color="rose" />
-                    <StatBox label="复用漏洞条目" value={`${reusedCount} 个`} color="amber" />
-                    <StatBox label="到期/过期条目" value={`${expiredCount} 个`} color={expiredCount > 0 ? "amber" : undefined} />
+                    <StatBox label={t("本地总资产条目")} value={tf.auditCount(totalCount)} />
+                    <StatBox label={t("弱密码条目")} value={tf.auditCount(weakCount)} color="rose" />
+                    <StatBox label={t("复用漏洞条目")} value={tf.auditCount(reusedCount)} color="amber" />
+                    <StatBox label={t("到期/过期条目")} value={tf.auditCount(expiredCount)} color={expiredCount > 0 ? "amber" : undefined} />
                   </div>
-                  <p className="text-[10px] text-slate-500 leading-relaxed">※ 本报告根据本地沙盒密码交叉解算，无任何数据上传。</p>
+                  <p className="text-[10px] text-slate-500 leading-relaxed">{t("※ 本报告根据本地沙盒密码交叉解算，无任何数据上传。")}</p>
                 </div>
               </div>
 
               <div className="space-y-6">
                 {/* Weak passwords */}
-                <AlertSection title={`弱密码安全警报 (${weakCount})`} icon={<AlertTriangle className="w-4 h-4 text-rose-500" />} count={weakCount}
-                  emptyMsg="✨ 表现优秀！本地数据库中所有密码条目皆符合高强度标准。">
+                <AlertSection title={tf.weakAlertTitle(weakCount)} icon={<AlertTriangle className="w-4 h-4 text-rose-500" />} count={weakCount}
+                  emptyMsg={t("✨ 表现优秀！本地数据库中所有密码条目皆符合高强度标准。")}>
                   {items.filter(i => i.password && i.strength === "weak").map(i => (
-                    <AlertRow key={i.id} item={i} tag="高危" tagColor="rose"
-                      detail={`用户名: ${i.username || "未知"} | 当前长度: ${i.password?.length || 0} 位 | 推荐更换`}
-                      btnLabel="一键安全修补" onAction={() => onFixItem(i.id)} />
+                    <AlertRow key={i.id} item={i} tag={t("高危")} tagColor="rose"
+                      detail={tf.weakDetail(i.username || t("未知"), i.password?.length || 0)}
+                      btnLabel={t("一键安全修补")} onAction={() => onFixItem(i.id)} />
                   ))}
                 </AlertSection>
 
                 {/* Reused passwords */}
-                <AlertSection title={`一密多用/凭证交叉复用警报 (${reusedCount})`} icon={<Copy className="w-4 h-4 text-amber-500" />} count={reusedCount}
-                  emptyMsg="✨ 表现极佳！本地库中无密码重合交叉，有效防范撞库风险。">
+                <AlertSection title={tf.reuseAlertTitle(reusedCount)} icon={<Copy className="w-4 h-4 text-amber-500" />} count={reusedCount}
+                  emptyMsg={t("✨ 表现极佳！本地库中无密码重合交叉，有效防范撞库风险。")}>
                   {items.filter(i => i.password && passMap[i.password] > 1).map(i => {
                     const dupes = items.filter(v => v.password === i.password && v.id !== i.id).map(d => d.title).join("、");
                     return (
-                      <AlertRow key={i.id} item={i} tag={`复用 ${passMap[i.password!]} 次`} tagColor="amber"
-                        detail={`此凭证密码与其它 ${passMap[i.password!] - 1} 个不同服务条目完全重合。`}
-                        extraLine={<span className="text-[10px] text-rose-500 font-medium flex items-center gap-1">⚠️ 重合条目: <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded border border-rose-100/80 font-bold text-[10px] truncate max-w-xs">{dupes}</span></span>}
-                        btnLabel="派生独立密钥" onAction={() => onFixItem(i.id)} />
+                      <AlertRow key={i.id} item={i} tag={tf.reuseTimes(passMap[i.password!])} tagColor="amber"
+                        detail={tf.reuseDetail(passMap[i.password!] - 1)}
+                        extraLine={<span className="text-[10px] text-rose-500 font-medium flex items-center gap-1">{t("⚠️ 重合条目: ")}<span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded border border-rose-100/80 font-bold text-[10px] truncate max-w-xs">{dupes}</span></span>}
+                        btnLabel={t("派生独立密钥")} onAction={() => onFixItem(i.id)} />
                     );
                   })}
                 </AlertSection>
 
                 {/* Compromised */}
-                <AlertSection title={`已知公共数据库泄露痕迹匹配 (${compromisedCount})`} icon={<ShieldAlert className="w-4 h-4 text-rose-600" />} count={compromisedCount}
-                  emptyMsg="✨ 表现合规！未碰撞到已公开泄漏的密码学特征备份。">
+                <AlertSection title={tf.compromisedAlertTitle(compromisedCount)} icon={<ShieldAlert className="w-4 h-4 text-rose-600" />} count={compromisedCount}
+                  emptyMsg={t("✨ 表现合规！未碰撞到已公开泄漏的密码学特征备份。")}>
                   {items.filter(i => (i.password === "password123" || i.password === "123456")).map(i => (
-                    <AlertRow key={i.id} item={i} tag="高危已泄漏" tagColor="rose" animate
-                      detail="⚠️ 通用密码在 HIBP 本地备份集碰撞中已曝光"
-                      btnLabel="紧急一键安全重构" onAction={() => onFixItem(i.id)} danger />
+                    <AlertRow key={i.id} item={i} tag={t("高危已泄漏")} tagColor="rose" animate
+                      detail={t("⚠️ 通用密码在 HIBP 本地备份集碰撞中已曝光")}
+                      btnLabel={t("紧急一键安全重构")} onAction={() => onFixItem(i.id)} danger />
                   ))}
                 </AlertSection>
 
@@ -171,7 +172,7 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
                 {ignoredCount > 0 && (
                   <div className="pt-4 border-t border-slate-200">
                     <h4 className="text-xs font-bold text-slate-500 mb-3 flex items-center space-x-1.5">
-                      <EyeOff className="w-4 h-4 text-slate-400" /><span>已手动忽略的安全警报 ({ignoredCount})</span>
+                      <EyeOff className="w-4 h-4 text-slate-400" /><span>{tf.ignoredTitle(ignoredCount)}</span>
                     </h4>
                     <div className="space-y-2.5">
                       {items.filter(i => i.ignoreSecurityWarning).map(i => (
@@ -179,12 +180,12 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
                           <div className="truncate pr-4 text-left">
                             <div className="flex items-center space-x-2">
                               <span className="text-xs font-bold text-slate-700">{i.title}</span>
-                              <span className="text-[9px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">已忽略</span>
+                              <span className="text-[9px] font-mono bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded font-bold">{t("已忽略")}</span>
                             </div>
-                            <p className="text-[10px] text-slate-400 mt-1 font-mono">诊断原状态: {i.strength === "weak" ? "高危弱密码" : "交叉重复复用"} · 密文：••••••••</p>
+                            <p className="text-[10px] text-slate-400 mt-1 font-mono">{tf.diagState(i.strength === "weak" ? t("高危弱密码") : t("交叉重复复用"))}</p>
                           </div>
                           <button type="button" onClick={() => onToggleIgnore(i.id)}
-                            className="bg-white hover:bg-slate-50 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-all shrink-0 cursor-pointer font-sans">恢复安全监控</button>
+                            className="bg-white hover:bg-slate-50 text-slate-700 font-bold text-[10px] px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm transition-all shrink-0 cursor-pointer font-sans">{t("恢复安全监控")}</button>
                         </div>
                       ))}
                     </div>

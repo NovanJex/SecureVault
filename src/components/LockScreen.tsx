@@ -4,6 +4,7 @@
 import React from "react";
 import { Lock, LockKeyhole, KeyRound, Unlock, ShieldAlert, RefreshCw, Check, ChevronDown, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
+import { t } from "../i18n";
 
 export interface LockScreenProps {
   isFirstTime: boolean;
@@ -90,19 +91,19 @@ export const LockScreen: React.FC<LockScreenProps> = ({
           {isFirstTime ? (
             /* ===== 创建主密码 ===== */
             <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2 font-sans tracking-tight">创建本地高强度保险箱</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-2 font-sans tracking-tight">{t("创建本地高强度保险箱")}</h2>
               <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-                欢迎使用 SecureVault！首次运行，我们需要在本地派生物理存储库对称密钥，该主密码仅存在您的本地，切勿遗忘。
+                {t("欢迎使用 SecureVault！首次运行，我们需要在本地派生物理存储库对称密钥，该主密码仅存在您的本地，切勿遗忘。")}
               </p>
 
               <form onSubmit={onCreateMasterPassword} noValidate className="space-y-4 text-left">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">输入您的主解锁密码</label>
+                  <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">{t("输入您的主解锁密码")}</label>
                   <div className="relative">
                     <LockKeyhole className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
                     <input
                       type={showRegisterPassword ? "text" : "password"}
-                      placeholder="设置至少 8 位的主密码..."
+                      placeholder={t("设置至少 8 位的主密码...")}
                       value={enteredPassword}
                       onChange={(e) => setEnteredPassword(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-10 py-3 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 transition-all font-sans"
@@ -111,7 +112,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                       type="button"
                       onClick={() => setShowRegisterPassword(!showRegisterPassword)}
                       className="absolute right-3 top-3.5 text-slate-400 hover:text-indigo-600 transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
-                      title={showRegisterPassword ? "隐藏密码" : "显示密码"}
+                      title={showRegisterPassword ? t("隐藏密码") : t("显示密码")}
                     >
                       {showRegisterPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -120,13 +121,13 @@ export const LockScreen: React.FC<LockScreenProps> = ({
 
                 <div className="grid grid-cols-2 gap-3 pt-1 items-end relative">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">主密钥推导算法 (KDF)</label>
+                    <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">{t("主密钥推导算法 (KDF)")}</label>
                     <div className="relative">
                       <button type="button" onClick={() => setKdfOpen(!kdfOpen)}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-3 text-xs text-slate-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/20 cursor-pointer flex items-center justify-between transition-all hover:bg-slate-100/50">
                         <span className="flex items-center space-x-1.5">
                           <span className="text-xs">{selectedKdf === "argon2id" ? "🛡️" : "⚙️"}</span>
-                          <span className="font-semibold text-slate-800">{selectedKdf === "argon2id" ? "Argon2id (推荐)" : "PBKDF2-SHA256"}</span>
+                          <span className="font-semibold text-slate-800">{selectedKdf === "argon2id" ? t("Argon2id (推荐)") : t("PBKDF2-SHA256")}</span>
                         </span>
                         <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${kdfOpen ? "rotate-180 text-indigo-500" : ""}`} />
                       </button>
@@ -138,7 +139,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                               <button key={k} type="button" onClick={() => { setSelectedKdf(k); setKdfOpen(false); }}
                                 className={`w-full text-left px-3.5 py-2 text-xs flex items-center space-x-2 transition-colors cursor-pointer ${selectedKdf === k ? "bg-indigo-50/70 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-50"}`}>
                                 <span className="text-sm shrink-0">{k === "argon2id" ? "🛡️" : "⚙️"}</span>
-                                <span className="flex-1 truncate">{k === "argon2id" ? "Argon2id (推荐)" : "PBKDF2-SHA256"}</span>
+                                <span className="flex-1 truncate">{k === "argon2id" ? t("Argon2id (推荐)") : t("PBKDF2-SHA256")}</span>
                                 {selectedKdf === k && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
                               </button>
                             ))}
@@ -149,8 +150,8 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                   </div>
                   <div className="text-[10px] text-slate-400 leading-relaxed pb-1">
                     {selectedKdf === "argon2id"
-                      ? "Argon2id: 抗 GPU/ASIC 硬件暴力破解，64MB 内存硬化，业界最安全 KDF。"
-                      : "PBKDF2-SHA256: NIST/FIPS 标准，100,000 轮哈希迭代拉伸。"}
+                      ? t("Argon2id: 抗 GPU/ASIC 硬件暴力破解，64MB 内存硬化，业界最安全 KDF。")
+                      : t("PBKDF2-SHA256: NIST/FIPS 标准，100,000 轮哈希迭代拉伸。")}
                   </div>
                 </div>
 
@@ -165,7 +166,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                 <button type="submit" disabled={isDeriving}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none text-white font-semibold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center space-x-1.5 shadow-md cursor-pointer disabled:cursor-not-allowed">
                   <KeyRound className="w-3.5 h-3.5" />
-                  <span>派生密钥并创建安全区</span>
+                  <span>{t("派生密钥并创建安全区")}</span>
                 </button>
 
                 {isDeriving && derivationProgress && (
@@ -179,23 +180,23 @@ export const LockScreen: React.FC<LockScreenProps> = ({
           ) : (
             /* ===== 解锁保险箱 ===== */
             <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-1 font-sans tracking-tight">安全保险箱已锁定</h2>
-              <p className="text-xs text-slate-500 mb-6">明文密钥已安全退出，请输入 Master Password 解锁</p>
+              <h2 className="text-xl font-bold text-slate-800 mb-1 font-sans tracking-tight">{t("安全保险箱已锁定")}</h2>
+              <p className="text-xs text-slate-500 mb-6">{t("明文密钥已安全退出，请输入 Master Password 解锁")}</p>
               <form onSubmit={onUnlockVault} noValidate className="space-y-4 text-left">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">主密码 (MASTER PASSWORD)</label>
+                  <label className="block text-[11px] font-bold text-slate-500 tracking-wider uppercase mb-2">{t("主密码 (MASTER PASSWORD)")}</label>
                   <div className="relative">
                     <LockKeyhole className="w-4 h-4 absolute left-3 top-3.5 text-slate-400" />
                     <input
                       type={showUnlockPassword ? "text" : "password"}
-                      autoFocus placeholder="输入对应的主解密密码..."
+                      autoFocus placeholder={t("输入对应的主解密密码...")}
                       value={enteredPassword} onChange={(e) => setEnteredPassword(e.target.value)}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-10 py-3 text-xs text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500/80 focus:ring-1 focus:ring-blue-500/30 transition-all font-sans" />
                     <button
                       type="button"
                       onClick={() => setShowUnlockPassword(!showUnlockPassword)}
                       className="absolute right-3 top-3.5 text-slate-400 hover:text-blue-600 transition-colors focus:outline-none cursor-pointer flex items-center justify-center"
-                      title={showUnlockPassword ? "隐藏密码" : "显示密码"}
+                      title={showUnlockPassword ? t("隐藏密码") : t("显示密码")}
                     >
                       {showUnlockPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -213,7 +214,7 @@ export const LockScreen: React.FC<LockScreenProps> = ({
                 <button type="submit" disabled={isDeriving}
                   className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 disabled:text-slate-400 disabled:shadow-none text-white font-semibold py-3 px-4 rounded-xl text-xs transition-all duration-150 flex items-center justify-center space-x-1.5 shadow-lg shadow-blue-100 active:scale-[0.99] cursor-pointer disabled:cursor-not-allowed">
                   <Unlock className="w-3.5 h-3.5" />
-                  <span>验证主密码并解锁</span>
+                  <span>{t("验证主密码并解锁")}</span>
                 </button>
 
                 {isDeriving && derivationProgress && (
@@ -227,36 +228,36 @@ export const LockScreen: React.FC<LockScreenProps> = ({
               {/* 忘记密码 / 强制重置 */}
               <details className="mt-6 text-left">
                 <summary className="text-[11px] font-bold text-slate-400 hover:text-slate-500 cursor-pointer select-none outline-none flex items-center space-x-1 uppercase">
-                  <span>❓ 忘了主密码怎么办？</span>
+                  <span>{t("❓ 忘了主密码怎么办？")}</span>
                 </summary>
                 <div className="mt-3 space-y-3 text-[11px] text-slate-500 leading-relaxed">
                   <div className="p-2.5 bg-slate-50 border border-slate-100 rounded">
-                    <span className="font-semibold text-slate-700">第一步：仔细回想与核对</span>
-                    <p className="mt-0.5 text-slate-500 leading-normal">主密码是解密对称密钥的唯一密码学钥匙。请核对是否曾在离线本子、纸张或硬件保险箱中进行了物理抄写备份。</p>
+                    <span className="font-semibold text-slate-700">{t("第一步：仔细回想与核对")}</span>
+                    <p className="mt-0.5 text-slate-500 leading-normal">{t("主密码是解密对称密钥的唯一密码学钥匙。请核对是否曾在离线本子、纸张或硬件保险箱中进行了物理抄写备份。")}</p>
                   </div>
 
                   <div className="p-2.5 bg-rose-50 border border-rose-100 rounded text-rose-800">
-                    <span className="font-semibold text-rose-900">实在找不到？只能进行强制重置</span>
-                    <p className="mt-0.5 text-rose-700/90 leading-normal">如果主密码确实彻底遗失，由于密码学无法被暴力攻破，您只能通过"强制重置保险箱"重新开始使用。但这会导致之前保存在本地的所有数据不可逆地永久销毁。</p>
+                    <span className="font-semibold text-rose-900">{t("实在找不到？只能进行强制重置")}</span>
+                    <p className="mt-0.5 text-rose-700/90 leading-normal">{t("如果主密码确实彻底遗失，由于密码学无法被暴力攻破，您只能通过\"强制重置保险箱\"重新开始使用。但这会导致之前保存在本地的所有数据不可逆地永久销毁。")}</p>
 
                     {!showForceResetConfirm ? (
                       <button type="button" onClick={() => setShowForceResetConfirm(true)}
                         className="mt-2.5 text-[9px] bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-200 rounded px-2.5 py-1.5 font-semibold transition-colors cursor-pointer">
-                        💥 强制初始化重置保险箱
+                        {t("💥 强制初始化重置保险箱")}
                       </button>
                     ) : (
                       <div className="mt-2.5 p-2.5 bg-rose-100/50 rounded border border-rose-200 space-y-2">
                         <p className="text-[10px] text-rose-800 font-bold leading-normal">
-                          🚨 终极警告：重置将永久且不可恢复地清除您本地的所有加密卡券、密码凭证及密保文件。确认要清除并刷新应用吗？
+                          {t("🚨 终极警告：重置将永久且不可恢复地清除您本地的所有加密卡券、密码凭证及密保文件。确认要清除并刷新应用吗？")}
                         </p>
                         <div className="flex space-x-2">
                           <button type="button" onClick={onForceReset}
                             className="text-[9px] bg-rose-600 hover:bg-rose-700 text-white font-bold rounded px-2.5 py-1.5 transition-colors cursor-pointer">
-                            确认彻底清除
+                            {t("确认彻底清除")}
                           </button>
                           <button type="button" onClick={() => setShowForceResetConfirm(false)}
                             className="text-[9px] bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold rounded px-2.5 py-1.5 transition-colors cursor-pointer">
-                            取消
+                            {t("取消")}
                           </button>
                         </div>
                       </div>
