@@ -332,7 +332,7 @@ jobs:
 
           > 🍎 macOS 提示：如打开时提示"已损坏"，终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开即可
           >
-          > 🐧 Linux 提示：老系统 (Ubuntu 20.04-) 需 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统缺少 libfuse2 用 `./SecureVault_amd64.AppImage --appimage-extract-and-run`
+          > 🐧 Linux 提示：老系统 (Ubuntu 20.04-) 需 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统缺少 libfuse2 用 `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run`
           EOF
 
           echo "--- 生成的 Release 说明 ---"
