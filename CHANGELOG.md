@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.
 ### 🔧 修复
 
 **Linux AppImage**
-- 修复 AppImage 在 Firejail 等沙箱环境下无法启动的问题（内部 `AppRun.wrapped` 缺少执行权限，报 "Permission denied"）
+- 修复 AppImage 在 Firejail 等沙箱环境下无法启动的问题（内部根目录与 `AppRun.wrapped` 权限不足，报 "Permission denied"）
 
 ### ✨ 改进
 

@@ -232,29 +232,27 @@ jobs:
           # 3b. 手动打包 squashfs（参数与原始包一致：zstd / 128KB 块 / root 属主）
           mksquashfs squashfs-root squashfs.img -all-root -noappend -comp zstd -b 131072 -no-progress
 
-          # 3c. 拼接：AppImage = runtime + squashfs
-          OUT="SecureVault-${VER}-x86_64.AppImage"
-          cat runtime.bin squashfs.img > "$OUT"
-          chmod +x "$OUT"
-          rm -f runtime.bin squashfs.img
-          echo "✅ 手动打包完成: $OUT ($(stat -c '%s' "$OUT") bytes)"
-
-          # ── 4. 自检：重新解包验证权限（失败则中止构建，防止发布坏产物）──
-          rm -rf squashfs-root
-          chmod +x "$OUT"
-          "./$OUT" --appimage-extract >/dev/null   # 注意 ./ 前缀：纯文件名不走 PATH 查找
-          echo "🔍 重打包产物权限自检："
+          # ── 3c. 自检：挂载 squashfs 读内核视角的权限记录 ─────────────────
+          # ★不可用 "$OUT" --appimage-extract 后 stat squashfs-root★：
+          # 该顶层目录由 runtime 自行 mkdir 创建（0700，与包内记录无关），
+          # 用它判定根目录恒得 700 —— 假阴性，会误拦正常产物。
+          # （v1.5.4 第 3 轮实测：mksquashfs 从 755 的源打包、无复制环节，
+          #   解包后根目录仍显示 700，证明该读数不反映包内容。）
+          # mount 读到的 root inode 权限才是 Firejail 沙箱读取的同一来源。
+          sudo mkdir -p /mnt/svcheck
+          sudo mount -o loop,ro squashfs.img /mnt/svcheck
+          trap 'sudo umount /mnt/svcheck 2>/dev/null || true' EXIT
 
           # ① 根目录必须 755（0700 是 Firejail 报 "Permission denied" 的真因）
-          root_perm=$(stat -c '%a' squashfs-root)
-          echo "  根目录权限: $root_perm"
+          root_perm=$(stat -c '%a' /mnt/svcheck)
+          echo "🔍 包内根目录权限: $root_perm"
           if [ "$root_perm" != "755" ]; then
             echo "❌ 自检失败：根目录权限 $root_perm ≠ 755（沙箱下无法遍历）"
             exit 1
           fi
 
           # ② 所有目录 other 位必须含 r-x
-          bad_dirs=$(find squashfs-root -type d ! -perm -0005 | head -5)
+          bad_dirs=$(find /mnt/svcheck -type d ! -perm -0005 | head -5)
           if [ -n "$bad_dirs" ]; then
             echo "❌ 自检失败：以下目录 other 权限不足："
             echo "$bad_dirs"
@@ -263,20 +261,34 @@ jobs:
           echo "  ✓ 全部目录 other 可读可进入"
 
           # ③ AppRun 系列 other 必须可执行
-          ls -l squashfs-root/AppRun* 2>/dev/null || true
-          for f in squashfs-root/AppRun squashfs-root/AppRun.wrapped; do
+          for f in /mnt/svcheck/AppRun /mnt/svcheck/AppRun.wrapped; do
             [ -e "$f" ] || continue
             perm=$(stat -c '%a' "$f")
             other=$(( 10#$perm % 10 ))
             if [ $(( other & 1 )) -eq 0 ]; then
-              echo "❌ 自检失败：$f 权限 $perm（other 无执行位）"
+              echo "❌ 自检失败：$(basename "$f") 权限 $perm（other 无执行位）"
               exit 1
             fi
-            echo "  ✓ $f 权限 $perm"
+            echo "  ✓ $(basename "$f") 权限 $perm"
           done
+          sudo umount /mnt/svcheck || true
           echo "✅ 权限自检通过（目录 755 + AppRun 系列 other 可执行）"
 
-          # ── 5. 上传到 Release ────────────────────────────────────────────
+          # ── 3d. 拼接：AppImage = runtime + squashfs ──────────────────────
+          OUT="SecureVault-${VER}-x86_64.AppImage"
+          cat runtime.bin squashfs.img > "$OUT"
+          chmod +x "$OUT"
+
+          # 拼接完整性校验：产物尾部应与 squashfs.img 逐字节一致
+          tail -c +$((OFFSET + 1)) "$OUT" > spliced.img
+          if ! cmp -s spliced.img squashfs.img; then
+            echo "❌ 拼接校验失败：产物尾部与 squashfs.img 不一致"
+            exit 1
+          fi
+          rm -f spliced.img runtime.bin squashfs.img
+          echo "✅ 手动打包完成: $OUT ($(stat -c '%s' "$OUT") bytes)"
+
+          # ── 4. 上传到 Release ────────────────────────────────────────────
           gh release upload "$VERSION" "$OUT" --repo ${{ github.repository }} --clobber
 
           # 清理旧命名的 AppImage 资产（含前版本的命名与原始名）
