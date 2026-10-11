@@ -39,7 +39,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 
 > 📦 Additional formats: Windows also ships `_Windows_x64_zh-CN.msi`; Linux also provides `.deb` and `.rpm` packages (names without the `v` prefix).
 
-> 🍎 **macOS tip**: If you see "app is damaged", run `xattr -cr /Applications/SecureVault.app` in Terminal and reopen.
+> 🍎 **macOS tip**: Drag SecureVault.app into the Applications folder before launching — running it straight from the mounted DMG triggers a security prompt on every launch. If macOS says the developer cannot be verified, allow it under System Settings → Privacy & Security, or run `xattr -cr /Applications/SecureVault.app` and reopen.
 >
 > 🐧 **Linux tip**: Older distros (Ubuntu 20.04-): `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`. Newer distros (Ubuntu 24.04+) missing libfuse2: run `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run`.
 >

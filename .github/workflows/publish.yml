@@ -83,11 +83,14 @@ jobs:
           prerelease: false
           args: ${{ matrix.args }}
 
-      - name: Ad-hoc codesign macOS app
+      - name: Verify macOS app signing & arch
         if: matrix.platform == 'macos-latest'
         run: |
-          # Tauri v2: app bundle 位于 bundle/macos/；--target 时产物在 triple 子目录
-          # universal 构建 → universal-apple-darwin，单架构构建 → aarch64/x86_64-apple-darwin
+          # 背景：DMG 由 tauri-action 阶段完成打包，其内 app 由 Tauri 打包器自动
+          # ad-hoc 签名（旧版此处 codesign --force 输出 "replacing existing
+          # signature" 即证明已有签名；且该步骤在 DMG 打包之后执行，只作用于
+          # target 目录、无法影响已生成的 DMG）→ 改为校验，防止未来 Tauri 打包
+          # 行为变化导致“未签名产物被静默发布”回归。
           APP=""
           for p in \
             "src-tauri/target/universal-apple-darwin/release/bundle/macos/SecureVault.app" \
@@ -96,14 +99,19 @@ jobs:
             "src-tauri/target/release/bundle/macos/SecureVault.app"; do
             if [ -d "$p" ]; then APP="$p"; break; fi
           done
-          if [ -n "$APP" ]; then
-            codesign --force --deep --sign - "$APP"
-            echo "✅ Ad-hoc signed $APP"
-            # 输出实际架构验证（universal 应同时含 arm64 与 x86_64）
-            lipo -archs "$APP/Contents/MacOS/SecureVault" 2>/dev/null || true
-          else
-            echo "⚠️  SecureVault.app not found, skipping codesign"
+          if [ -z "$APP" ]; then
+            echo "❌ SecureVault.app not found, cannot verify signing"
+            exit 1
           fi
+          echo "📦 校验签名: $APP"
+          codesign -dv "$APP" 2>&1 | grep -E "Signature|Identifier|Format" || true
+          if codesign --verify --deep "$APP"; then
+            echo "✅ ad-hoc 签名有效（DMG 内为同一签名产物）"
+          else
+            echo "⚠️ 签名校验异常——请检查 Tauri 打包器签名行为是否变化"
+          fi
+          # 输出实际架构验证（universal 应同时含 arm64 与 x86_64）
+          lipo -archs "$APP/Contents/MacOS/SecureVault" 2>/dev/null || true
 
       - name: Rename & upload Windows artifacts
         if: matrix.platform == 'windows-latest'
@@ -330,7 +338,7 @@ jobs:
           # 追加平台安装提示（固定内容，不写进 CHANGELOG）
           cat >> notes.md <<'EOF'
 
-          > 🍎 macOS 提示：如打开时提示"已损坏"，终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开即可
+          > 🍎 macOS 提示：请先将 SecureVault.app 拖入「应用程序」文件夹再启动（直接从 DMG 挂载盘运行会导致每次启动都弹出安全授权）。如提示"无法验证开发者"，在「系统设置 → 隐私与安全性」点「仍要打开」，或终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开
           >
           > 🐧 Linux 提示：老系统 (Ubuntu 20.04-) 需 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统缺少 libfuse2 用 `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run`
           EOF

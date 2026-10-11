@@ -39,7 +39,7 @@
 
 > 📦 附加格式：Windows 提供 `_Windows_x64_zh-CN.msi`（MSI 安装器）；Linux 提供 `.deb` 与 `.rpm` 包（文件名不含 `v` 前缀）。
 
-> 🍎 **macOS 提示**：如打开时提示"已损坏"，在终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开即可。
+> 🍎 **macOS 提示**：请先将 SecureVault.app 拖入「应用程序」文件夹再启动（直接从 DMG 挂载盘运行会导致每次启动都弹出安全授权）。如提示"无法验证开发者"，在「系统设置 → 隐私与安全性」点「仍要打开」，或终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开。
 >
 > 🐧 **Linux 提示**：老系统 (Ubuntu 20.04-) 需执行 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统 (Ubuntu 24.04+) 如缺少 libfuse2，运行 `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run` 即可。
 
