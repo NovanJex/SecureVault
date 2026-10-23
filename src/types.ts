@@ -27,6 +27,12 @@ export interface VaultItem {
   otpSecret?: string;
   /** 到期日期（YYYY-MM-DD，如卡券有效期、证书过期日） */
   expiresAt?: string;
+  /** 密码历史（最新在前，最多保留 5 条；仅记录被替换掉的旧密码） */
+  passwordHistory?: Array<{ password: string; changedAt: string }>;
+  /** 回收站标记（ISO 时间；有值即已移入回收站，不参与统计/常规视图） */
+  deletedAt?: string;
+  /** 最近使用时间（打开详情 / 从列表复制密码时更新） */
+  lastUsedAt?: string;
   updatedAt: string;
   strength: "weak" | "medium" | "strong";
   isFavorite?: boolean;

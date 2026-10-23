@@ -37,7 +37,7 @@ export function calculateStrength(password: string): "weak" | "medium" | "strong
 }
 
 /** 已知高风险密码特征（本地碰撞检测） */
-const KNOWN_COMPROMISED = new Set(["password", "password123", "123456", "12345678", "qwerty", "admin", "letmein"]);
+export const KNOWN_COMPROMISED = new Set(["password", "password123", "123456", "12345678", "qwerty", "admin", "letmein"]);
 
 export function useSecurityAudit(items: VaultItem[]): UseSecurityAuditReturn {
   const [isAuditScanning, setIsAuditScanning] = useState(false);

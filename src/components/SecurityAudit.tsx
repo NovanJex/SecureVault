@@ -1,8 +1,11 @@
 // SecurityAudit — 安全审计仪表板（弱密码 / 复用 / 泄露检测）
 
 import React from "react";
-import { ShieldAlert, ShieldCheck, RefreshCw, AlertTriangle, Copy, EyeOff } from "lucide-react";
+import { ShieldAlert, ShieldCheck, RefreshCw, AlertTriangle, Copy, EyeOff, Download } from "lucide-react";
+import { save } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@tauri-apps/api/core";
 import { t, tf } from "../i18n";
+import { KNOWN_COMPROMISED } from "../hooks/useSecurityAudit";
 
 export interface SecurityAuditProps {
   isAuditScanning: boolean;
@@ -21,11 +24,16 @@ export interface SecurityAuditProps {
     password?: string;
     strength: "weak" | "medium" | "strong";
     ignoreSecurityWarning?: boolean;
+    /** 以下字段用于安全报告导出（VaultItem 结构兼容） */
+    type?: "login" | "card" | "note" | "identity";
+    expiresAt?: string;
+    updatedAt?: string;
   }>;
   onStartAudit: () => void;
   onFixItem: (id: string) => void;
   onToggleIgnore: (id: string) => void;
   onCopyPassword: (text: string) => void;
+  showToast: (msg: string) => void;
 }
 
 /** 评分计算 */
@@ -37,9 +45,50 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
   isAuditScanning, hasAuditScanned,
   totalCount, weakCount, reusedCount, compromisedCount, expiredCount, ignoredCount,
   passMap, items,
-  onStartAudit, onFixItem, onToggleIgnore, onCopyPassword,
+  onStartAudit, onFixItem, onToggleIgnore, onCopyPassword, showToast,
 }) => {
   const score = calcScore(weakCount, reusedCount, compromisedCount);
+
+  /** 导出密码健康报告（CSV，不含明文密码；UTF-8 BOM 防 Excel 乱码） */
+  const handleExportReport = async () => {
+    try {
+      const header = [t("标题"), t("类型"), t("用户名"), t("强度"), t("复用次数"), t("泄露匹配"), t("到期日期"), t("最近修改")];
+      const rows = items.map(item => {
+        const typeLabel = item.type === "login" ? t("常规账号")
+          : item.type === "card" ? t("虚拟卡券")
+          : item.type === "note" ? t("安全备忘")
+          : item.type === "identity" ? t("密保资料")
+          : "";
+        const strengthLabel = item.strength === "strong" ? t("安全")
+          : item.strength === "medium" ? t("中等") : t("风险");
+        const reuseCount = item.password ? (passMap[item.password] || 0) : 0;
+        const breached = item.password && KNOWN_COMPROMISED.has(item.password.toLowerCase()) ? t("是") : t("否");
+        return [
+          item.title,
+          typeLabel,
+          item.username || "",
+          strengthLabel,
+          String(reuseCount),
+          breached,
+          item.expiresAt || "",
+          item.updatedAt || "",
+        ];
+      });
+      const escapeCell = (v: string) => /[",\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+      const csv = "\uFEFF" + [header, ...rows].map(r => r.map(escapeCell).join(",")).join("\r\n");
+
+      const filePath = await save({
+        filters: [{ name: t("安全报告"), extensions: ["csv"] }],
+        defaultPath: `SecureVault_Security_Report_${new Date().toISOString().slice(0, 10)}.csv`,
+      });
+      if (!filePath) return;
+      await invoke('write_export_file', { path: filePath, content: csv });
+      showToast(t("✅ 安全报告已导出"));
+    } catch (e) {
+      console.error("导出安全报告失败:", e);
+      showToast(t("❌ 导出安全报告失败"));
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden font-sans bg-slate-50">
@@ -52,9 +101,18 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
             <p className="text-[10px] text-slate-400 mt-0.5">{t("依据零知识协议进行本地哈希指纹对齐与热力学熵值解算")}</p>
           </div>
         </div>
-        <div className="flex items-center space-x-1.5 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 shrink-0 self-start md:self-auto">
-          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 block animate-pulse"></span>
-          <span className="text-[9px] font-bold text-rose-600 font-mono tracking-wider">AUDIT ENGINE</span>
+        <div className="flex items-center space-x-2 shrink-0 self-start md:self-auto">
+          {hasAuditScanned && (
+            <button type="button" onClick={handleExportReport}
+              className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-2.5 py-1 rounded-lg text-[10px] font-bold transition-colors cursor-pointer flex items-center space-x-1 shadow-sm">
+              <Download className="w-3 h-3" />
+              <span>{t("导出报告")}</span>
+            </button>
+          )}
+          <div className="flex items-center space-x-1.5 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 block animate-pulse"></span>
+            <span className="text-[9px] font-bold text-rose-600 font-mono tracking-wider">AUDIT ENGINE</span>
+          </div>
         </div>
       </div>
 

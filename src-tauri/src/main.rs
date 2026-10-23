@@ -271,10 +271,22 @@ fn generate_totp(secret: String) -> Result<TotpResponse, String> {
 
 // 11. 导出 KeePass KDBX 数据库文件（KDBX4 + Argon2id + AES-256-CBC + GZip）
 //     凭证数据由前端传入（已解密的 vault items JSON），KDBX 使用用户指定的独立密码
+/// 解析 ISO / 常见时间字符串为 NaiveDateTime
+/// 支持 "2026-10-11T12:34:56.789Z"、"2026-10-11T12:34:56"、"2026-10-11T12:34" 等
+fn parse_iso_dt(s: &str) -> Option<chrono::NaiveDateTime> {
+    if s.is_empty() {
+        return None;
+    }
+    let core = if s.len() >= 19 { &s[..19] } else { s };
+    chrono::NaiveDateTime::parse_from_str(core, "%Y-%m-%dT%H:%M:%S")
+        .or_else(|_| chrono::NaiveDateTime::parse_from_str(core, "%Y-%m-%dT%H:%M"))
+        .ok()
+}
+
 #[tauri::command]
 fn export_kdbx(path: String, items_json: String, password: String) -> Result<(), String> {
     use keepass::config::{DatabaseConfig, DatabaseVersion, KdfConfig};
-    use keepass::db::{Database, Entry, Group, Value};
+    use keepass::db::{Database, Entry, Group, History, Value};
     use keepass::DatabaseKey;
     use secstr::SecStr;
 
@@ -305,9 +317,10 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
         item.get(key).and_then(|v| v.as_str()).unwrap_or("").to_string()
     };
 
-    // 收集文件夹（保持出现顺序）
+    // 收集文件夹（保持出现顺序；回收站条目不导出，其文件夹也不收集）
     let mut folders: Vec<String> = Vec::new();
     for item in &items {
+        if !get_str(item, "deletedAt").is_empty() { continue; }
         let f = get_str(item, "folder");
         let folder = if f.is_empty() { "KeePass 导出".to_string() } else { f };
         if !folders.contains(&folder) {
@@ -318,6 +331,9 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
     for folder in folders {
         let mut group = Group::new(&folder);
         for item in &items {
+            // 回收站条目不导出（保持 KeePass 数据库干净）
+            if !get_str(item, "deletedAt").is_empty() { continue; }
+
             let f = get_str(item, "folder");
             let item_folder = if f.is_empty() { "KeePass 导出".to_string() } else { f };
             if item_folder != folder { continue; }
@@ -371,6 +387,34 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
                     entry.times.expires = true;
                     entry.times.set_expiry(dt);
                 }
+            }
+            // 密码历史 → KDBX history
+            // keepass 的 add_entry 为头部插入，因此按「最旧→最新」依次 add，
+            // 使 get_entries() 顺序与前端约定一致（最新在前）
+            if let Some(hist) = item.get("passwordHistory").and_then(|v| v.as_array()) {
+                if !hist.is_empty() {
+                    let mut h = History::default();
+                    for rec in hist.iter().rev() {
+                        let pw = rec.get("password").and_then(|v| v.as_str()).unwrap_or("");
+                        if pw.is_empty() { continue; }
+                        let ts = rec.get("changedAt").and_then(|v| v.as_str()).unwrap_or("");
+                        let mut old_entry = Entry::new();
+                        old_entry.fields.insert("Title".into(), Value::Unprotected(get_str(item, "title")));
+                        old_entry.fields.insert("UserName".into(), Value::Unprotected(get_str(item, "username")));
+                        old_entry.fields.insert("Password".into(), Value::Protected(SecStr::from(pw)));
+                        old_entry.fields.insert("URL".into(), Value::Unprotected(get_str(item, "url")));
+                        old_entry.fields.insert("Notes".into(), Value::Unprotected(get_str(item, "notes")));
+                        if let Some(dt) = parse_iso_dt(ts) {
+                            old_entry.times.set_last_modification(dt);
+                        }
+                        h.add_entry(old_entry);
+                    }
+                    entry.history = Some(h);
+                }
+            }
+            // 最近使用 → KeePass 标准 LastAccessTime
+            if let Some(dt) = parse_iso_dt(&get_str(item, "lastUsedAt")) {
+                entry.times.set_last_access(dt);
             }
             group.add_child(entry);
         }
@@ -450,6 +494,24 @@ fn import_kdbx(path: String, password: String) -> Result<String, String> {
                 String::new()
             };
 
+            // 密码历史：读取 KDBX history（每条取 Password + 最后修改时间，最多 5 条）
+            let mut pw_hist: Vec<serde_json::Value> = Vec::new();
+            if let Some(h) = &entry.history {
+                for he in h.get_entries() {
+                    let pw = get_field(&he.fields, "Password");
+                    if pw.is_empty() { continue; }
+                    let ts = he.times.get_last_modification()
+                        .map(|dt| dt.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+                        .unwrap_or_default();
+                    pw_hist.push(serde_json::json!({ "password": pw, "changedAt": ts }));
+                    if pw_hist.len() >= 5 { break; }
+                }
+            }
+            // 最近使用：KeePass 标准 LastAccessTime
+            let last_used = entry.times.get_last_access()
+                .map(|dt| dt.format("%Y-%m-%dT%H:%M:%SZ").to_string())
+                .unwrap_or_default();
+
             items.push(serde_json::json!({
                 "title": get_field(fields, "Title"),
                 "username": get_field(fields, "UserName"),
@@ -460,6 +522,8 @@ fn import_kdbx(path: String, password: String) -> Result<String, String> {
                 "favorite": get_field(fields, "SecureVaultFavorite") == "1",
                 "expiresAt": expires_at,
                 "custom": serde_json::Value::Object(custom),
+                "passwordHistory": pw_hist,
+                "lastUsedAt": last_used,
             }));
         }
 

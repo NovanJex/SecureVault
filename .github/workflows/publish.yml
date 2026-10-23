@@ -64,7 +64,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
-            squashfs-tools
+            squashfs-tools \
+            zsync
 
       - name: Install node dependencies
         run: npm install
@@ -237,6 +238,14 @@ jobs:
           head -c "$OFFSET" "$SRC" > runtime.bin
           echo "📦 提取 runtime: $OFFSET bytes（原包 squashfs 偏移）"
 
+          # 3a-2. 嵌入 AppImage 更新信息（.upd_info ELF section，供 AppImageUpdate 使用）
+          # 格式: gh-releases-zsync|<owner>|<repo>|<tag>|<zsync 文件名模式>
+          UPD_INFO="gh-releases-zsync|NovanJex|SecureVault|latest|SecureVault-*-x86_64.AppImage.zsync"
+          printf '%s' "$UPD_INFO" > upd_info.txt
+          objcopy --add-section .upd_info=upd_info.txt runtime.bin runtime_patched.bin
+          RT_SIZE=$(stat -c '%s' runtime_patched.bin)
+          echo "📦 runtime(patched): $RT_SIZE bytes（含 .upd_info）"
+
           # 3b. 手动打包 squashfs（参数与原始包一致：zstd / 128KB 块 / root 属主）
           mksquashfs squashfs-root squashfs.img -all-root -noappend -comp zstd -b 131072 -no-progress
 
@@ -284,20 +293,40 @@ jobs:
 
           # ── 3d. 拼接：AppImage = runtime + squashfs ──────────────────────
           OUT="SecureVault-${VER}-x86_64.AppImage"
-          cat runtime.bin squashfs.img > "$OUT"
+          cat runtime_patched.bin squashfs.img > "$OUT"
           chmod +x "$OUT"
 
           # 拼接完整性校验：产物尾部应与 squashfs.img 逐字节一致
-          tail -c +$((OFFSET + 1)) "$OUT" > spliced.img
+          # 注意：runtime 已被 objcopy 改写（.upd_info），偏移必须用 patched 后的大小
+          tail -c +$((RT_SIZE + 1)) "$OUT" > spliced.img
           if ! cmp -s spliced.img squashfs.img; then
             echo "❌ 拼接校验失败：产物尾部与 squashfs.img 不一致"
             exit 1
           fi
-          rm -f spliced.img runtime.bin squashfs.img
+          rm -f spliced.img runtime.bin runtime_patched.bin upd_info.txt squashfs.img
+
+          # 3d-2. 校验 .upd_info 已嵌入且 runtime 仍可执行（防 objcopy 损坏 runtime）
+          if ! readelf -S "$OUT" | grep -q "upd_info"; then
+            echo "❌ 自检失败：产物缺少 .upd_info（AppImageUpdate 将不可用）"
+            exit 1
+          fi
+          echo "  ✓ .upd_info 已嵌入"
+          if ! "./$OUT" --appimage-version >/dev/null 2>&1; then
+            echo "❌ 自检失败：runtime 无法执行（objcopy 可能损坏了 runtime）"
+            exit 1
+          fi
+          echo "  ✓ runtime 可执行（--appimage-version 通过）"
+
           echo "✅ 手动打包完成: $OUT ($(stat -c '%s' "$OUT") bytes)"
 
           # ── 4. 上传到 Release ────────────────────────────────────────────
           gh release upload "$VERSION" "$OUT" --repo ${{ github.repository }} --clobber
+
+          # 4b. 生成并上传 .zsync（AppImageUpdate 增量更新元数据）
+          ZSYNC="SecureVault-${VER}-x86_64.AppImage.zsync"
+          zsyncmake -u "https://github.com/${{ github.repository }}/releases/download/${VERSION}/${ZSYNC}" -o "$ZSYNC" "$OUT"
+          gh release upload "$VERSION" "$ZSYNC" --repo ${{ github.repository }} --clobber
+          echo "✅ 已上传 $ZSYNC"
 
           # 清理旧命名的 AppImage 资产（含前版本的命名与原始名）
           gh release delete-asset "$VERSION" "SecureVault_${VERSION}_Linux_amd64.AppImage" --repo ${{ github.repository }} --yes || true

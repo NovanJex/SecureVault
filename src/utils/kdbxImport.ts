@@ -23,6 +23,10 @@ export interface KdbxRawItem {
   expiresAt?: string;
   /** 自定义字段（排除 Title/UserName/Password/URL/Notes/SecureVaultFavorite） */
   custom: Record<string, string>;
+  /** 密码历史（来自 KDBX history，最新在前） */
+  passwordHistory?: Array<{ password: string; changedAt: string }>;
+  /** 最近使用时间（来自 KeePass LastAccessTime） */
+  lastUsedAt?: string;
 }
 
 export interface KdbxImportPayload {
@@ -118,6 +122,8 @@ export function convertKdbxPayload(payload: KdbxImportPayload): ImportResult {
       customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
       otpSecret,
       expiresAt: raw.expiresAt || undefined,
+      passwordHistory: raw.passwordHistory && raw.passwordHistory.length > 0 ? raw.passwordHistory.slice(0, 5) : undefined,
+      lastUsedAt: raw.lastUsedAt || undefined,
       ...cardCustom,
     });
   }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Lock,
   KeyRound,
@@ -28,6 +28,7 @@ import {
   ExternalLink,
   LockKeyholeOpen,
   FileCheck2,
+  RotateCcw,
   X,
   Star,
   Settings,
@@ -104,6 +105,8 @@ export default function App() {
     type: "item" | "folder";
     id: string;
     name: string;
+    /** item 删除模式：trash=移入回收站（默认），erase=彻底删除（仅回收站内） */
+    mode?: "trash" | "erase";
   } | null>(null);
 
   // 临时表单字段
@@ -146,8 +149,11 @@ export default function App() {
   const [clipboardTimeLeft, setClipboardTimeLeft] = useState<number | null>(null);
   const clipboardIntervalRef = useRef<any>(null);
 
+  // 活跃条目（排除回收站）——统计 / 审计 / 常规视图共用
+  const activeItems = useMemo(() => vaultItems.filter(i => !i.deletedAt), [vaultItems]);
+
   // ===== 安全审计 Hook =====
-  const { isAuditScanning, hasAuditScanned, handleStartAudit, auditResult, getStrength } = useSecurityAudit(vaultItems);
+  const { isAuditScanning, hasAuditScanned, handleStartAudit, auditResult, getStrength } = useSecurityAudit(activeItems);
   // pendingSaveRef 已移入 useVault Hook
 
   // Toast 通知
@@ -274,9 +280,15 @@ export default function App() {
 
   // 以下函数已移入 usePasswordGenerator / useSecurityAudit Hook
 
-  const copyToClipboard = async (text: string, label: string) => {
+  /** 打点：更新条目的最近使用时间（随自动保存机制持久化） */
+  const touchItem = (id: string) => {
+    setVaultItems(prev => prev.map(i => i.id === id ? { ...i, lastUsedAt: new Date().toISOString() } : i));
+  };
+
+  const copyToClipboard = async (text: string, label: string, touchId?: string) => {
     try {
       await writeText(text);
+      if (touchId) touchItem(touchId);
       showToast(tf.copied(label));
 
       // 防剪贴板泄漏计时器
@@ -409,6 +421,7 @@ export default function App() {
 
   // 填充表单（编辑或创建）
   const handleSelectItem = (item: VaultItem) => {
+    touchItem(item.id);
     setSelectedItemId(item.id);
     setIsEditing(false);
     setIsCreating(false);
@@ -520,6 +533,9 @@ export default function App() {
             folder: formFolder,
             username: formUsername,
             password: formPassword,
+            passwordHistory: formPassword && formPassword !== item.password && item.password
+              ? [{ password: item.password, changedAt: new Date().toISOString() }, ...(item.passwordHistory || [])].slice(0, 5)
+              : item.passwordHistory,
             url: formUrl,
             cardName: formCardName,
             cardNumber: formCardNumber,
@@ -553,16 +569,38 @@ export default function App() {
     setDeleteConfirm({
       type: "item",
       id: id,
-      name: title
+      name: title,
+      mode: "trash"
     });
+  };
+
+  /** 回收站内：彻底删除（走“安全擦除”确认） */
+  const handleEraseItem = (id: string, title: string) => {
+    setDeleteConfirm({ type: "item", id, name: title, mode: "erase" });
+  };
+
+  /** 回收站内：恢复条目 */
+  const handleRestoreItem = (id: string) => {
+    setVaultItems(prev => prev.map(item => item.id === id ? { ...item, deletedAt: undefined } : item));
+    showToast(t("♻️ 条目已恢复到保险箱"));
   };
 
   const confirmDeleteAction = () => {
     if (!deleteConfirm) return;
     if (deleteConfirm.type === "item") {
-      setVaultItems(prev => prev.filter(item => item.id !== deleteConfirm.id));
+      if (deleteConfirm.mode === "erase") {
+        // 彻底删除：真正从保险箱移除（仅回收站内可触发）
+        setVaultItems(prev => prev.filter(item => item.id !== deleteConfirm.id));
+        showToast(tf.itemDeleted(deleteConfirm.name));
+      } else {
+        // 软删除：移入回收站
+        const now = new Date().toISOString();
+        setVaultItems(prev => prev.map(item =>
+          item.id === deleteConfirm.id && !item.deletedAt ? { ...item, deletedAt: now } : item
+        ));
+        showToast(tf.itemTrashed(deleteConfirm.name));
+      }
       setSelectedItemId(null);
-      showToast(tf.itemDeleted(deleteConfirm.name));
     } else {
       setFolders(prev => prev.filter(f => f.id !== deleteConfirm.id));
       setVaultItems(prev => prev.map(item => item.folder === deleteConfirm.name ? { ...item, folder: "未分类" } : item));
@@ -607,6 +645,9 @@ export default function App() {
         return {
           ...item,
           password: strongPass,
+          passwordHistory: item.password
+            ? [{ password: item.password, changedAt: new Date().toISOString() }, ...(item.passwordHistory || [])].slice(0, 5)
+            : item.passwordHistory,
           strength: "strong",
           updatedAt: new Date().toISOString().replace("T", " ").substring(0, 16)
         };
@@ -615,6 +656,29 @@ export default function App() {
     }));
 
     showToast(t("🔒 已自动为该条目安全更新 20 位高强随机密码！"));
+  };
+
+  /** 恢复历史密码：选中历史值设为当前，当前密码自动入历史 */
+  const handleRestorePassword = (itemId: string, index: number) => {
+    setVaultItems(prev => prev.map(item => {
+      if (item.id !== itemId) return item;
+      const hist = item.passwordHistory || [];
+      const target = hist[index];
+      if (!target) return item;
+      const now = new Date().toISOString();
+      const newHist = [
+        { password: item.password || "", changedAt: now },
+        ...hist.filter((_, i) => i !== index),
+      ].slice(0, 5);
+      return {
+        ...item,
+        password: target.password,
+        passwordHistory: newHist,
+        strength: getStrength(target.password),
+        updatedAt: now.replace("T", " ").substring(0, 16),
+      };
+    }));
+    showToast(t("♻️ 已恢复历史密码"));
   };
 
   const handleExportData = async () => {
@@ -730,7 +794,7 @@ export default function App() {
         return;
       }
 
-      const dupCheck = checkDuplicates(result.items, vaultItems);
+      const dupCheck = checkDuplicates(result.items, activeItems);
       setBrowserImportDups(dupCheck.duplicates);
       setBrowserImportResult({ ...result, items: dupCheck.items });
       setShowBrowserImport(true);
@@ -783,7 +847,7 @@ export default function App() {
 
       // 复用浏览器导入预览流程
       const result = convertKdbxPayload(payload);
-      const dupCheck = checkDuplicates(result.items, vaultItems);
+      const dupCheck = checkDuplicates(result.items, activeItems);
       setBrowserImportDups(dupCheck.duplicates);
       setBrowserImportResult({ ...result, items: dupCheck.items });
       setShowBrowserImport(true);
@@ -963,24 +1027,39 @@ export default function App() {
   const selectedItem = vaultItems.find(item => item.id === selectedItemId) || null;
 
   const filteredItems = vaultItems.filter(item => {
+    // 回收站视角只显示已删除条目；其他视角一律排除回收站条目
+    const inTrash = !!item.deletedAt;
+    if (selectedFolder === "trash") {
+      if (!inTrash) return false;
+    } else if (inTrash) {
+      return false;
+    }
+
     const matchesSearch = item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.username && item.username.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (item.url && item.url.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (item.notes && item.notes.toLowerCase().includes(searchQuery.toLowerCase()));
-    
+
     if (!matchesSearch) return false;
 
-    if (selectedFolder === "favorites") {
-      if (!item.isFavorite) return false;
-    } else if (selectedFolder !== "all") {
-      if (item.folder !== selectedFolder) return false;
-    }
+    // 回收站视角不做文件夹/类型过滤（全量展示）
+    if (selectedFolder !== "trash") {
+      if (selectedFolder === "favorites") {
+        if (!item.isFavorite) return false;
+      } else if (selectedFolder !== "all") {
+        if (item.folder !== selectedFolder) return false;
+      }
 
-    if (selectedItemType !== "all") {
-      if (item.type !== selectedItemType) return false;
+      if (selectedItemType !== "all") {
+        if (item.type !== selectedItemType) return false;
+      }
     }
 
     return true;
+  }).sort((a, b) => {
+    // 回收站按删除时间倒序；常规视图按最近使用（无则修改时间）倒序
+    if (selectedFolder === "trash") return (b.deletedAt || "").localeCompare(a.deletedAt || "");
+    return (b.lastUsedAt || b.updatedAt).localeCompare(a.lastUsedAt || a.updatedAt);
   });
 
   // 审计统计来自 useSecurityAudit Hook (auditResult)
@@ -1076,7 +1155,7 @@ export default function App() {
                                   <LockKeyholeOpen className="w-3.5 h-3.5" />
                                   <span>{t("所有本地条目")}</span>
                                 </span>
-                                <span className="text-[10px] bg-slate-200/60 text-slate-600 px-1.5 py-0.5 rounded font-mono">{vaultItems.length}</span>
+                                <span className="text-[10px] bg-slate-200/60 text-slate-600 px-1.5 py-0.5 rounded font-mono">{activeItems.length}</span>
                               </button>
 
                               <button
@@ -1092,7 +1171,7 @@ export default function App() {
                                   <span>{t("星标收藏")}</span>
                                 </span>
                                 <span className="text-[10px] bg-slate-200/60 text-slate-600 px-1.5 py-0.5 rounded font-mono">
-                                  {vaultItems.filter(i => i.isFavorite).length}
+                                  {activeItems.filter(i => i.isFavorite).length}
                                 </span>
                               </button>
 
@@ -1150,6 +1229,23 @@ export default function App() {
                                   <span>{t("浏览器插件包")}</span>
                                 </span>
                               </button>
+
+                              <button
+                                onClick={() => { setSelectedFolder("trash"); setSelectedItemType("all"); setSelectedItemId(null); setIsCreating(false); setIsEditing(false); }}
+                                className={`w-full text-left px-3.5 py-1.5 rounded-md text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                  selectedFolder === "trash"
+                                    ? "bg-slate-200/60 text-slate-900"
+                                    : "text-slate-600 hover:bg-slate-200"
+                                }`}
+                              >
+                                <span className="flex items-center space-x-2">
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>{t("回收站")}</span>
+                                </span>
+                                <span className="text-[10px] bg-slate-200/60 text-slate-600 px-1.5 py-0.5 rounded font-mono">
+                                  {vaultItems.filter(i => i.deletedAt).length}
+                                </span>
+                              </button>
                             </div>
                           </div>
 
@@ -1182,7 +1278,7 @@ export default function App() {
                                     <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono transition-colors ${
                                       isSelected ? `${t.iconBg} font-bold` : "bg-slate-200/60 text-slate-600"
                                     }`}>
-                                      {vaultItems.filter(i => i.type === t.id).length}
+                                      {activeItems.filter(i => i.type === t.id).length}
                                     </span>
                                   </button>
                                 );
@@ -1388,22 +1484,24 @@ export default function App() {
                           {filteredItems.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-80 text-center text-slate-400">
                               <div className="p-4 bg-white rounded-2xl mb-3.5 border border-slate-200/80 shadow-sm">
-                                <KeyRound className="w-7 h-7 text-slate-400" />
+                                {selectedFolder === "trash" ? <Trash2 className="w-7 h-7 text-slate-400" /> : <KeyRound className="w-7 h-7 text-slate-400" />}
                               </div>
-                              <h4 className="text-sm font-bold text-slate-700">{t("未发现匹配的安全凭证")}</h4>
-                              <p className="text-xs text-slate-400 max-w-xs mt-1">{t("您可以调整搜索过滤词，或点击左上角的「新建凭证」开始录入加密项。")}</p>
+                              <h4 className="text-sm font-bold text-slate-700">{selectedFolder === "trash" ? t("回收站为空") : t("未发现匹配的安全凭证")}</h4>
+                              {selectedFolder !== "trash" && (
+                                <p className="text-xs text-slate-400 max-w-xs mt-1">{t("您可以调整搜索过滤词，或点击左上角的「新建凭证」开始录入加密项。")}</p>
+                              )}
                             </div>
                           ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                               {filteredItems.map((item) => (
                                 <div
                                   key={item.id}
-                                  onClick={() => handleSelectItem(item)}
+                                  onClick={() => { if (!item.deletedAt) handleSelectItem(item); }}
                                   className={`bg-white rounded-xl border p-4 text-left transition-all cursor-pointer shadow-sm relative group flex flex-col justify-between h-40 hover:-translate-y-0.5 hover:shadow-md ${
                                     selectedItemId === item.id 
                                       ? "border-blue-600 ring-1 ring-blue-600" 
                                       : "border-slate-200/80 hover:border-slate-300"
-                                  }`}
+                                  }${item.deletedAt ? " opacity-75" : ""}`}
                                 >
                                   <div>
                                     {/* Icon & Status */}
@@ -1476,23 +1574,44 @@ export default function App() {
                                     </span>
                                     
                                     <div className="flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                      {item.username && (
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); copyToClipboard(item.username || "", t("账号")); }}
-                                          className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-600 rounded border border-slate-200 transition-colors cursor-pointer"
-                                          title={t("复制账号")}
-                                        >
-                                          <User className="w-3 h-3" />
-                                        </button>
-                                      )}
-                                      {item.password && (
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); copyToClipboard(item.password || "", t("密码")); }}
-                                          className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-600 rounded border border-slate-200 transition-colors cursor-pointer"
-                                          title={t("复制密码")}
-                                        >
-                                          <Copy className="w-3 h-3" />
-                                        </button>
+                                      {item.deletedAt ? (
+                                        <>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleRestoreItem(item.id); }}
+                                            className="p-1 bg-slate-50 hover:bg-emerald-50 text-slate-500 hover:text-emerald-600 rounded border border-slate-200 transition-colors cursor-pointer"
+                                            title={t("恢复")}
+                                          >
+                                            <RotateCcw className="w-3 h-3" />
+                                          </button>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleEraseItem(item.id, item.title); }}
+                                            className="p-1 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 rounded border border-slate-200 transition-colors cursor-pointer"
+                                            title={t("彻底删除")}
+                                          >
+                                            <Trash2 className="w-3 h-3" />
+                                          </button>
+                                        </>
+                                      ) : (
+                                        <>
+                                          {item.username && (
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); copyToClipboard(item.username || "", t("账号")); }}
+                                              className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-600 rounded border border-slate-200 transition-colors cursor-pointer"
+                                              title={t("复制账号")}
+                                            >
+                                              <User className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                          {item.password && (
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); copyToClipboard(item.password || "", t("密码"), item.id); }}
+                                              className="p-1 bg-slate-50 hover:bg-slate-100 text-slate-500 hover:text-blue-600 rounded border border-slate-200 transition-colors cursor-pointer"
+                                              title={t("复制密码")}
+                                            >
+                                              <Copy className="w-3 h-3" />
+                                            </button>
+                                          )}
+                                        </>
                                       )}
                                     </div>
                                   </div>
@@ -2251,14 +2370,15 @@ export default function App() {
                           weakCount={weakCount}
                           reusedCount={reusedCount}
                           compromisedCount={compromisedCount}
-                          expiredCount={vaultItems.filter(i => isExpired(i.expiresAt)).length}
+                          expiredCount={activeItems.filter(i => isExpired(i.expiresAt)).length}
                           ignoredCount={ignoredCount}
                           passMap={passMap}
-                          items={vaultItems}
+                          items={activeItems}
                           onStartAudit={handleStartAudit}
                           onFixItem={handleFixVulnerableItem}
                           onToggleIgnore={toggleIgnoreWarning}
                           onCopyPassword={(p) => copyToClipboard(p, t("密码"))}
+                          showToast={showToast}
                         />
                       ) : selectedItem ? (
                         <CredentialDetail
@@ -2271,6 +2391,7 @@ export default function App() {
                           onEdit={() => setIsEditing(true)}
                           onDelete={handleDeleteItem}
                           onToggleIgnoreWarning={toggleIgnoreWarning}
+                          onRestoreHistory={(idx) => handleRestorePassword(selectedItem!.id, idx)}
                           passMap={passMap}
                         />
                       ) : selectedFolder === "generator" ? (
@@ -2585,7 +2706,7 @@ export default function App() {
         <BrowserImportPreview
           importResult={browserImportResult}
           duplicates={browserImportDups}
-          existingCount={vaultItems.length}
+          existingCount={activeItems.length}
           importStrategy={browserImportStrategy}
           setImportStrategy={setBrowserImportStrategy}
           onConfirm={handleBrowserImportConfirm}

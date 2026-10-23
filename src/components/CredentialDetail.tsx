@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import {
   ShieldCheck, User, CreditCard, FileText, FileCheck2,
   Edit3, Trash2, Copy, Eye, EyeOff, ExternalLink,
-  AlertTriangle, Star, Clock, KeyRound
+  AlertTriangle, Star, Clock, KeyRound, ChevronDown
 } from "lucide-react";
 import type { VaultItem } from "../types";
 import { generateTotp } from "../utils/tauriBridge";
@@ -21,12 +21,13 @@ export interface CredentialDetailProps {
   onEdit: () => void;
   onDelete: (id: string, title: string) => void;
   onToggleIgnoreWarning: (id: string) => void;
+  onRestoreHistory: (index: number) => void;
   passMap: Record<string, number>;
 }
 
 export const CredentialDetail: React.FC<CredentialDetailProps> = ({
   item, revealedPasswords, onToggleReveal, onToggleFavorite,
-  onCopy, onOpenUrl, onEdit, onDelete, onToggleIgnoreWarning, passMap,
+  onCopy, onOpenUrl, onEdit, onDelete, onToggleIgnoreWarning, onRestoreHistory, passMap,
 }) => (
   <div className="flex-1 flex flex-col overflow-hidden font-sans bg-slate-50">
     {/* Top Header */}
@@ -162,6 +163,14 @@ export const CredentialDetail: React.FC<CredentialDetailProps> = ({
                 <Field label={t("注册密保手机号")} value={item.identityPhone || ""} onCopy={() => onCopy(item.identityPhone || "", t("手机"))} />
                 <Field label={t("常用于配送 / 绑定物理地址")} value={item.identityAddress || ""} onCopy={() => onCopy(item.identityAddress || "", t("地址"))} />
               </div>
+            )}
+
+            {item.passwordHistory && item.passwordHistory.length > 0 && (
+              <PasswordHistoryPanel
+                history={item.passwordHistory}
+                onCopy={onCopy}
+                onRestore={onRestoreHistory}
+              />
             )}
 
             {item.notes && (
@@ -358,6 +367,58 @@ const PlainField: React.FC<{ label: string; value: string }> = ({ label, value }
     <p className="text-xs font-semibold text-slate-800 font-mono mt-1.5">{value}</p>
   </div>
 );
+
+/** 密码历史面板（详情页）
+ *  显示最近被替换的密码；可显示/复制/恢复其中任一历史值（恢复时当前密码自动入历史） */
+const PasswordHistoryPanel: React.FC<{
+  history: Array<{ password: string; changedAt: string }>;
+  onCopy: (text: string, label: string) => void;
+  onRestore: (index: number) => void;
+}> = ({ history, onCopy, onRestore }) => {
+  const [open, setOpen] = useState(false);
+  const [shown, setShown] = useState<Record<number, boolean>>({});
+  return (
+    <div className="border-b border-slate-100 pb-2.5">
+      <button type="button" onClick={() => setOpen(!open)}
+        className="flex items-center space-x-1.5 text-[10px] font-bold text-slate-400 hover:text-indigo-600 tracking-wider uppercase transition-colors cursor-pointer">
+        <Clock className="w-3 h-3" />
+        <span>{t("历史密码")} ({history.length})</span>
+        <ChevronDown className={`w-3 h-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="mt-2 space-y-1.5">
+          {history.map((h, i) => (
+            <div key={i} className="flex items-center justify-between bg-slate-50 border border-slate-200/70 rounded-lg px-2.5 py-1.5">
+              <span className="text-[10px] text-slate-400 font-mono shrink-0 mr-3">
+                {h.changedAt.slice(0, 16).replace("T", " ")}
+              </span>
+              <span className="flex-1 text-[11px] font-mono text-slate-700 truncate">
+                {shown[i] ? h.password : "••••••••"}
+              </span>
+              <div className="flex items-center space-x-1.5 shrink-0 ml-2">
+                <button type="button" onClick={() => setShown(prev => ({ ...prev, [i]: !prev[i] }))}
+                  className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                  title={shown[i] ? t("隐藏密码") : t("显示密码")}>
+                  {shown[i] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                </button>
+                <button type="button" onClick={() => onCopy(h.password, t("历史密码"))}
+                  className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer"
+                  title={t("复制")}>
+                  <Copy className="w-3 h-3" />
+                </button>
+                <button type="button" onClick={() => onRestore(i)}
+                  className="text-[9px] font-bold text-indigo-600 hover:text-indigo-800 border border-indigo-200 rounded px-1.5 py-0.5 transition-colors cursor-pointer"
+                  title={t("恢复此密码")}>
+                  {t("恢复")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 /** 已知高风险密码（与 useSecurityAudit 中的列表保持一致） */
 const KNOWN_COMPROMISED = new Set(["password", "password123", "123456", "12345678", "qwerty", "admin", "letmein"]);
