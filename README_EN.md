@@ -66,6 +66,9 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 - **4 credential types** — Login / Card / Secure Note / Identity
 - **Folder organization** — custom folders with rename/delete
 - **Star favorites** — quick access to important items
+- **Password history** — keeps the last 5 replaced passwords; view / copy / restore anytime
+- **Trash** — deleted items can be restored; permanent erase requires confirmation
+- **Recent-use sorting** — recently opened or copied items first
 - **Auto-lock** — configurable idle timeout, sensitive data wiped from memory on lock
 
 ### 🧬 Encryption & Backup
@@ -82,6 +85,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 - **Reuse collision** — cross-service password reuse detection
 - **Compromised check** — matches against known leaked password patterns
 - **One-click fix** — auto-generate strong replacement passwords
+- **Report export** — one-click CSV health report (Excel-friendly, no plaintext passwords)
 
 ### 🎲 Password Generator
 
@@ -89,6 +93,11 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 - **Passphrase mode** — BIP39 2048-word standard, customizable separator, capitalization
 - **Entropy meter** — real-time entropy estimation with crack time projection
 - **History cache** — last generated passwords with one-click copy
+
+### 🌐 Internationalization & Updates
+
+- **Multi-language UI** — follows the system locale (Chinese, English fallback)
+- **AppImage auto-update** — ships `.upd_info` + `.zsync` for AppImageUpdate
 
 ---
 
@@ -122,26 +131,33 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 
 ```text
 src/
-├── components/          # 8 UI components
+├── components/          # 11 UI components
 │   ├── LockScreen.tsx            # vault lock / master password creation
-│   ├── CredentialDetail.tsx      # credential detail view
+│   ├── CredentialDetail.tsx      # credential detail view (with password history)
 │   ├── PasswordGenerator.tsx     # password & passphrase generator
-│   ├── SecurityAudit.tsx         # security audit dashboard
+│   ├── SecurityAudit.tsx         # security audit dashboard (with report export)
 │   ├── SplashScreen.tsx          # startup splash animation
-│   └── FolderModal / DeleteConfirmModal / ImportPasswordModal
+│   └── BrowserExtensionHub / BrowserImportPreview / DatePicker / FolderModal / DeleteConfirmModal / ImportPasswordModal
 ├── hooks/               # 3 custom React hooks
 │   ├── useVault.ts               # encryption, CRUD, auto-save
 │   ├── usePasswordGenerator.ts   # generation logic
 │   └── useSecurityAudit.ts       # audit calculation
-├── utils/               # 3 utility modules
+├── utils/               # 8 utility modules
 │   ├── tauriBridge.ts            # Tauri IPC wrapper
 │   ├── vaultStorage.ts           # encrypted storage operations
+│   ├── browserImport.ts          # Chrome/1Password/LastPass/Bitwarden import
+│   ├── kdbxImport.ts             # KeePass KDBX import
+│   ├── extensionGenerator.ts     # browser extension packaging
+│   ├── otp.ts                    # TOTP secret parsing
+│   ├── dateUtils.ts              # date & expiry helpers
 │   └── wordlist.ts               # BIP39 2048 English word list
+├── i18n.ts              # UI internationalization (zh/en dictionary)
+├── types.ts             # type definitions
 ├── App.tsx              # main application component
 ├── main.tsx             # entry point
 └── index.css            # global styles & animations
 src-tauri/
-├── src/main.rs          # Rust crypto backend (7 Tauri commands)
+├── src/main.rs          # Rust crypto backend (12 Tauri commands)
 ├── Cargo.toml           # Rust dependencies
 ├── capabilities/        # Tauri plugin permissions
 └── icons/               # application icons (PNG, ICO, ICNS)

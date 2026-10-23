@@ -64,6 +64,9 @@
 - **四种凭证类型** — 登录账号 / 虚拟卡券 / 安全备忘 / 密保资料
 - **文件夹分类** — 自定义创建/重命名/删除文件夹
 - **星标收藏** — 快速定位重要条目
+- **密码历史** — 修改密码时自动保留最近 5 个旧密码，随时查看 / 复制 / 恢复
+- **回收站** — 删除的条目可随时恢复，彻底清除需二次确认
+- **最近使用排序** — 列表优先展示最近打开或复制过的条目
 - **自动锁定** — 可配置空闲超时，锁定时从内存中擦除密钥和解密数据
 
 ### 🧬 加密与备份
@@ -80,6 +83,7 @@
 - **复用碰撞** — 跨服务密码复用检测
 - **泄露匹配** — 与已知泄露密码特征对比
 - **一键修补** — 自动生成高强度替换密码
+- **报告导出** — 一键导出密码健康报告（CSV，兼容 Excel，不含明文密码）
 
 ### 🎲 密码生成器
 
@@ -87,6 +91,11 @@
 - **助记词模式** — BIP39 2048 词库标准，自定义分隔符、首字母大写
 - **熵值仪表** — 实时熵值估算与破译时间预测
 - **历史缓存** — 最近生成的密码，一键复制
+
+### 🌐 界面与更新
+
+- **多语言界面** — 跟随系统语言自动切换（中文环境中文，其余英文）
+- **AppImage 自动更新** — 内置更新信息（`.upd_info` + `.zsync`），支持 AppImageUpdate 增量更新
 
 ---
 
@@ -120,26 +129,33 @@
 
 ```text
 src/
-├── components/          # 8 个 UI 组件
+├── components/          # 11 个 UI 组件
 │   ├── LockScreen.tsx            # 保险箱锁定 / 主密码创建
-│   ├── CredentialDetail.tsx      # 凭证详情视图
+│   ├── CredentialDetail.tsx      # 凭证详情视图（含密码历史面板）
 │   ├── PasswordGenerator.tsx     # 密码与助记词生成器
-│   ├── SecurityAudit.tsx         # 安全审计仪表板
+│   ├── SecurityAudit.tsx         # 安全审计仪表板（含报告导出）
 │   ├── SplashScreen.tsx          # 启动 Splash 动画
-│   └── FolderModal / DeleteConfirmModal / ImportPasswordModal
+│   └── BrowserExtensionHub / BrowserImportPreview / DatePicker / FolderModal / DeleteConfirmModal / ImportPasswordModal
 ├── hooks/               # 3 个自定义 React Hook
 │   ├── useVault.ts               # 加密、CRUD、自动保存
 │   ├── usePasswordGenerator.ts   # 密码生成逻辑
 │   └── useSecurityAudit.ts       # 审计计算逻辑
-├── utils/               # 3 个工具模块
+├── utils/               # 8 个工具模块
 │   ├── tauriBridge.ts            # Tauri IPC 封装
 │   ├── vaultStorage.ts           # 加密存储操作
+│   ├── browserImport.ts          # 浏览器 / 1Password / LastPass / Bitwarden 导入
+│   ├── kdbxImport.ts             # KeePass KDBX 导入
+│   ├── extensionGenerator.ts     # 浏览器扩展打包
+│   ├── otp.ts                    # TOTP 密钥解析
+│   ├── dateUtils.ts              # 日期与到期计算
 │   └── wordlist.ts               # BIP39 2048 英文词库
+├── i18n.ts              # 界面国际化（中英字典）
+├── types.ts             # 类型定义
 ├── App.tsx              # 主应用组件
 ├── main.tsx             # 入口
 └── index.css            # 全局样式与动画
 src-tauri/
-├── src/main.rs          # Rust 加密后端（7 个 Tauri 命令）
+├── src/main.rs          # Rust 加密后端（12 个 Tauri 命令）
 ├── Cargo.toml           # Rust 依赖
 ├── capabilities/        # Tauri 插件权限
 └── icons/               # 应用图标（PNG, ICO, ICNS）
