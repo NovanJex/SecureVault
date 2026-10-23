@@ -222,9 +222,21 @@ jobs:
           #   重打包 0700）
           # 手动 mksquashfs 直接读取文件系统权限（chmod 后的 755），无复制环节。
 
-          # 3a. 从原始包提取 runtime（复用原装 runtime，保证与上游一致）
-          OFFSET=$(python3 -c "
-          data = open('$SRC', 'rb').read()
+          # 3a. 生成带更新信息的 runtime（.upd_info，供 AppImageUpdate 使用）
+          # 说明：直接对 runtime 用 `objcopy --add-section` 在 CI 上实测失败
+          # （"file format not recognized"），改用官方 appimagetool 生成 upd_info
+          # 后的 runtime。squashfs 仍由下方手动 mksquashfs 打包，以保留规范化后
+          # 的 755 根目录（appimagetool 的临时复制会引入 0700 根目录问题）。
+          UPD_INFO="gh-releases-zsync|NovanJex|SecureVault|latest|SecureVault-*-x86_64.AppImage.zsync"
+          wget -q -O appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool
+          # APPIMAGE_EXTRACT_AND_RUN=1 让 appimagetool 在无 FUSE 的 CI 环境运行
+          ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool -u "$UPD_INFO" squashfs-root tmp_pack.AppImage >/dev/null 2>&1 \
+            || { echo "❌ appimagetool 生成临时包失败（用于提取带 .upd_info 的 runtime）"; exit 1; }
+
+          # 从临时产物中提取 runtime（magic 扫描定位 squashfs 起点 = runtime 长度）
+          RT_SIZE=$(python3 -c "
+          data = open('tmp_pack.AppImage', 'rb').read()
           pos = 0
           while True:
               pos = data.find(b'hsqs', pos)
@@ -235,16 +247,14 @@ jobs:
                   print(pos); break
               pos += 4
           ")
-          head -c "$OFFSET" "$SRC" > runtime.bin
-          echo "📦 提取 runtime: $OFFSET bytes（原包 squashfs 偏移）"
-
-          # 3a-2. 嵌入 AppImage 更新信息（.upd_info ELF section，供 AppImageUpdate 使用）
-          # 格式: gh-releases-zsync|<owner>|<repo>|<tag>|<zsync 文件名模式>
-          UPD_INFO="gh-releases-zsync|NovanJex|SecureVault|latest|SecureVault-*-x86_64.AppImage.zsync"
-          printf '%s' "$UPD_INFO" > upd_info.txt
-          objcopy --add-section .upd_info=upd_info.txt runtime.bin runtime_patched.bin
-          RT_SIZE=$(stat -c '%s' runtime_patched.bin)
-          echo "📦 runtime(patched): $RT_SIZE bytes（含 .upd_info）"
+          head -c "$RT_SIZE" tmp_pack.AppImage > runtime_patched.bin
+          rm -f tmp_pack.AppImage appimagetool
+          echo "📦 runtime(含 .upd_info): $RT_SIZE bytes"
+          if ! readelf -S runtime_patched.bin | grep -q "upd_info"; then
+            echo "❌ 自检失败：runtime 缺少 .upd_info（appimagetool 版本行为可能变化）"
+            exit 1
+          fi
+          echo "  ✓ runtime 已含 .upd_info"
 
           # 3b. 手动打包 squashfs（参数与原始包一致：zstd / 128KB 块 / root 属主）
           mksquashfs squashfs-root squashfs.img -all-root -noappend -comp zstd -b 131072 -no-progress
@@ -303,7 +313,7 @@ jobs:
             echo "❌ 拼接校验失败：产物尾部与 squashfs.img 不一致"
             exit 1
           fi
-          rm -f spliced.img runtime.bin runtime_patched.bin upd_info.txt squashfs.img
+          rm -f spliced.img runtime_patched.bin squashfs.img
 
           # 3d-2. 校验 .upd_info 已嵌入且 runtime 仍可执行（防 objcopy 损坏 runtime）
           if ! readelf -S "$OUT" | grep -q "upd_info"; then
