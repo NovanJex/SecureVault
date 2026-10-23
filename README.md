@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.5-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.6.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -182,6 +182,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.6.0` | 2026-10-23 | 密码历史版本、回收站、最近使用排序、安全报告导出、AppImage 自动更新 |
 | `v1.5.5` | 2026-10-09 | 界面多语言（跟随系统语言，非中文环境自动英文）|
 | `v1.5.4` | 2026-10-08 | Linux AppImage 沙箱兼容修复、命名规范化 |
 | `v1.5.3` | 2026-09-19 | 浏览器扩展会话级免输入解锁、文档中文化 |

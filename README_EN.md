@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.5.5-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.6.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -184,6 +184,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.6.0` | 2026-10-23 | Password history, trash, recent-use sorting, security reports, AppImage auto-updates |
 | `v1.5.5` | 2026-10-09 | Multi-language UI (follows system locale, English fallback) |
 | `v1.5.4` | 2026-10-08 | Linux AppImage sandbox fix, naming convention |
 | `v1.5.3` | 2026-09-19 | Session-persistent extension unlock, Chinese docs |
