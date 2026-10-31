@@ -513,3 +513,31 @@ jobs:
 
           gh release upload "$VERSION" latest.json --repo "$REPO" --clobber
           echo "✅ latest.json 已上传（应用内更新清单）"
+
+      # 清理冗余资产（必须在 latest.json 生成之后：需要先下载 *.sig 读取签名内容）
+      # 保留：各平台安装包 + latest.json 引用的签名（SecureVault.app.tar.gz.sig / *-setup.exe.sig）
+      # 说明：v1.7.0 实测 tauri-action 会额外上传 SecureVault_universal.app.tar.gz（与兜底上传的
+      #       SecureVault.app.tar.gz 内容相同）；Linux 不使用 Tauri updater（AppImageUpdate 走 .zsync）；
+      #       MSI 不用于自动更新（updater 走 NSIS）——这些签名文件均属冗余。
+      - name: Prune redundant assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          VER="${VERSION#v}"
+          REPO="${{ github.repository }}"
+          echo "🧹 开始清理冗余资产..."
+          for name in \
+            "SecureVault_universal.app.tar.gz" \
+            "SecureVault_universal.app.tar.gz.sig" \
+            "SecureVault_${VER}_amd64.AppImage.sig" \
+            "SecureVault_${VER}_amd64.deb.sig" \
+            "SecureVault-${VER}-1.x86_64.rpm.sig" \
+            "SecureVault_${VER}_x64_zh-CN.msi.sig"; do
+            if gh release delete-asset "$VERSION" "$name" --repo "$REPO" --yes 2>/dev/null; then
+              echo "  🗑️ 已删除: $name"
+            else
+              echo "  ⏭️ 不存在（跳过）: $name"
+            fi
+          done
+          echo "✅ 资产清理完成"
