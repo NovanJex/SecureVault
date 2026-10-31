@@ -533,7 +533,9 @@ jobs:
             "SecureVault_${VER}_amd64.AppImage.sig" \
             "SecureVault_${VER}_amd64.deb.sig" \
             "SecureVault-${VER}-1.x86_64.rpm.sig" \
-            "SecureVault_${VER}_x64_zh-CN.msi.sig"; do
+            "SecureVault_${VER}_x64_zh-CN.msi.sig" \
+            "SecureVault.app.tar.gz.sig" \
+            "SecureVault_${VER}_x64-setup.exe.sig"; do
             if gh release delete-asset "$VERSION" "$name" --repo "$REPO" --yes 2>/dev/null; then
               echo "  🗑️ 已删除: $name"
             else
