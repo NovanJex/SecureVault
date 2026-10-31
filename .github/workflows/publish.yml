@@ -74,6 +74,10 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # updater 签名私钥（无密码）；生成 *.sig，供 latest.json 与前端校验
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # 必须显式置空：密钥无密码时，缺失该变量会触发交互式密码提示（CI 下挂起/失败）
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
           tagName: v__VERSION__
           releaseName: 'SecureVault v__VERSION__'
@@ -138,6 +142,17 @@ jobs:
           7z a "SecureVault_${VERSION}_Windows_Portable.zip" "$STAGING"
           gh release upload "$VERSION" "SecureVault_${VERSION}_Windows_Portable.zip" --repo ${{ github.repository }}
 
+          # updater 签名文件：latest.json 内嵌其内容（重命名安装包不影响签名有效性，
+          # 因为签名针对文件内容）。缺失即失败 —— 防止静默发布无法应用内更新的版本。
+          NSIS_SIG="$BUNDLE/nsis/SecureVault_${VER}_x64-setup.exe.sig"
+          if [ -f "$NSIS_SIG" ]; then
+            gh release upload "$VERSION" "$NSIS_SIG" --repo ${{ github.repository }} --clobber
+            echo "✅ 已上传 updater 签名 $(basename "$NSIS_SIG")"
+          else
+            echo "❌ 未生成 NSIS updater 签名（检查 TAURI_SIGNING_PRIVATE_KEY 是否生效）"
+            exit 1
+          fi
+
           # 删除原始命名产物（保留重命名版）
           gh release delete-asset "$VERSION" "SecureVault_${VER}_x64-setup.exe" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 exe 不存在或已删除"
           gh release delete-asset "$VERSION" "SecureVault_${VER}_x64_zh-CN.msi" --repo ${{ github.repository }} --yes || echo "⚠️ 原始 msi 不存在或已删除"
@@ -174,6 +189,21 @@ jobs:
           echo "📦 使用 dmg: $DMG"
           cp "$DMG" "SecureVault_${VERSION}_macOS_universal.dmg"
           gh release upload "$VERSION" "SecureVault_${VERSION}_macOS_universal.dmg" --repo ${{ github.repository }} --clobber
+
+          # updater 产物兜底上传（universal .app.tar.gz + 签名，供 macOS 应用内更新）
+          APP_DIR="$(dirname "$DMG_DIR")/macos"
+          found_updater=0
+          for f in "$APP_DIR"/SecureVault*.app.tar.gz "$APP_DIR"/SecureVault*.app.tar.gz.sig; do
+            if [ -f "$f" ]; then
+              gh release upload "$VERSION" "$f" --repo ${{ github.repository }} --clobber
+              found_updater=1
+            fi
+          done
+          if [ "$found_updater" -eq 1 ]; then
+            echo "✅ updater 产物已确认上传 (macOS)"
+          else
+            echo "⚠️ 没有找到 .app.tar.gz（macOS 应用内更新将不可用）"
+          fi
 
           # 删除历史命名的 aarch64 产物（若存在，避免 Release 出现两个 macOS 包）
           gh release delete-asset "$VERSION" "SecureVault_${VERSION}_macOS_aarch64.dmg" --repo ${{ github.repository }} --yes || true
@@ -338,6 +368,11 @@ jobs:
           gh release upload "$VERSION" "$ZSYNC" --repo ${{ github.repository }} --clobber
           echo "✅ 已上传 $ZSYNC"
 
+          # 清理 Tauri 生成的 updater 冗余产物（Linux 更新走 AppImageUpdate，
+          # 且手动重打包的 AppImage 与 tauri 的 tar.gz 内容不一致，保留会误导）
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_amd64.AppImage.tar.gz" --repo ${{ github.repository }} --yes || true
+          gh release delete-asset "$VERSION" "SecureVault_${VER}_amd64.AppImage.tar.gz.sig" --repo ${{ github.repository }} --yes || true
+
           # 清理旧命名的 AppImage 资产（含前版本的命名与原始名）
           gh release delete-asset "$VERSION" "SecureVault_${VERSION}_Linux_amd64.AppImage" --repo ${{ github.repository }} --yes || true
           gh release delete-asset "$VERSION" "SecureVault_${VER}_amd64.AppImage" --repo ${{ github.repository }} --yes || echo "⚠️ 原始命名 AppImage 不存在或已删除"
@@ -362,24 +397,48 @@ jobs:
           VER="${VERSION#v}"             # 如 1.5.2
           # 提取 "## vX.X.X (...)" 标题行开始、到下一个 "---" 之前的段落
           # 用字段比较（$2 == "v1.5.2"）而非正则，避免括号转义兼容问题
-          awk -v ver="$VER" '
-            $1 == "##" && $2 == "v" ver {found=1; next}
-            found && $0 == "---" {exit}
-            found {print}
-          ' CHANGELOG.md > notes.md
+          extract_section() {
+            awk -v ver="$VER" '
+              $1 == "##" && $2 == "v" ver {found=1; next}
+              found && $0 == "---" {exit}
+              found {print}
+            ' "$1"
+          }
 
-          if [ ! -s notes.md ]; then
+          extract_section CHANGELOG.md > notes_zh.md
+
+          if [ ! -s notes_zh.md ]; then
             echo "⚠️ CHANGELOG 中未找到 v${VER} 段落，保留草稿原有说明"
-            rm -f notes.md
+            rm -f notes_zh.md
             exit 0
           fi
 
-          # 追加平台安装提示（固定内容，不写进 CHANGELOG）
+          # 英文段（CHANGELOG_EN.md 自 v1.7.0 起提供；历史版本仅有中文段）
+          : > notes_en.md
+          if [ -f CHANGELOG_EN.md ]; then
+            extract_section CHANGELOG_EN.md > notes_en.md || true
+          fi
+
+          cp notes_zh.md notes.md
+          if [ -s notes_en.md ]; then
+            printf '\n---\n\n## 🇬🇧 English\n\n' >> notes.md
+            cat notes_en.md >> notes.md
+          else
+            echo "ℹ️ CHANGELOG_EN.md 中无 v${VER} 英文段，Release 说明仅含中文"
+          fi
+
+          # 追加平台安装提示（固定内容，不写进 CHANGELOG；中英双语）
           cat >> notes.md <<'EOF'
 
           > 🍎 macOS 提示：请先将 SecureVault.app 拖入「应用程序」文件夹再启动（直接从 DMG 挂载盘运行会导致每次启动都弹出安全授权）。如提示"无法验证开发者"，在「系统设置 → 隐私与安全性」点「仍要打开」，或终端执行 `xattr -cr /Applications/SecureVault.app` 后重新打开
           >
           > 🐧 Linux 提示：老系统 (Ubuntu 20.04-) 需 `sudo apt install libwebkit2gtk-4.1-dev libgtk-3-dev`；新系统缺少 libfuse2 用 `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run`
+          >
+          > ---
+          >
+          > 🍎 **macOS**: Drag SecureVault.app into the Applications folder before launching (running it directly from the mounted DMG triggers a security prompt on every launch). If macOS reports "cannot verify the developer", choose "Open Anyway" under System Settings → Privacy & Security, or run `xattr -cr /Applications/SecureVault.app` and reopen.
+          >
+          > 🐧 **Linux**: On older systems (Ubuntu 20.04-) install `libwebkit2gtk-4.1-dev libgtk-3-dev`; if libfuse2 is missing, run `./SecureVault-X.X.X-x86_64.AppImage --appimage-extract-and-run`
           EOF
 
           echo "--- 生成的 Release 说明 ---"
@@ -392,3 +451,65 @@ jobs:
         run: |
           gh release edit "${{ github.ref_name }}" --notes-file notes.md --repo ${{ github.repository }}
           echo "✅ Release 草稿说明已更新"
+
+      # 生成应用内更新清单 latest.json（Tauri updater 端点）：
+      #   https://github.com/<repo>/releases/latest/download/latest.json
+      # 全部平台构建结束后统一生成，避免并行上传互相覆盖。
+      # Linux 不纳入（AppImageUpdate 走 .zsync）；macOS universal 包同时服务两个平台 key。
+      - name: Generate & upload latest.json (in-app updater manifest)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          VER="${VERSION#v}"
+          REPO="${{ github.repository }}"
+          mkdir -p sigs
+          gh release download "$VERSION" --repo "$REPO" --pattern "*.sig" --dir sigs --clobber
+          echo "已下载签名文件："
+          ls -l sigs || true
+
+          python3 - "$VER" "$VERSION" "$REPO" <<'PYEOF'
+          import json, os, sys, datetime, urllib.parse
+          ver, tag, repo = sys.argv[1], sys.argv[2], sys.argv[3]
+          sigdir = 'sigs'
+
+          def sig_content(name):
+              path = os.path.join(sigdir, name + '.sig')
+              if not os.path.exists(path):
+                  raise SystemExit('missing signature file: ' + path)
+              return open(path, encoding='utf-8').read().strip()
+
+          base = 'https://github.com/' + repo + '/releases/download/' + tag + '/'
+          assets = sorted(os.listdir(sigdir))
+          win_sig = next((a for a in assets if a.endswith('-setup.exe.sig')), None)
+          mac_sig = next((a for a in assets if a.endswith('.app.tar.gz.sig')), None)
+          if not win_sig or not mac_sig:
+              raise SystemExit('签名文件缺失: win=' + str(win_sig) + ' mac=' + str(mac_sig) + ' 实际=' + str(assets))
+
+          # Windows：使用重命名后的安装包资产（内容与 .sig 对应）
+          win_exe = 'SecureVault_' + tag + '_Windows_x64-setup.exe'
+          # macOS：universal .app.tar.gz 原样保留
+          mac_tar = mac_sig[:-4]
+          mac_url = base + urllib.parse.quote(mac_tar)
+
+          notes = ''
+          if os.path.exists('notes.md'):
+              notes = open('notes.md', encoding='utf-8').read()
+
+          manifest = {
+              'version': ver,
+              'notes': notes,
+              'pub_date': datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
+              'platforms': {
+                  'windows-x86_64': {'signature': sig_content(win_sig[:-4]), 'url': base + win_exe},
+                  'darwin-aarch64': {'signature': sig_content(mac_tar), 'url': mac_url},
+                  'darwin-x86_64': {'signature': sig_content(mac_tar), 'url': mac_url},
+              },
+          }
+          with open('latest.json', 'w', encoding='utf-8') as f:
+              json.dump(manifest, f, ensure_ascii=False, indent=2)
+          print(json.dumps(manifest, ensure_ascii=False, indent=2)[:800])
+          PYEOF
+
+          gh release upload "$VERSION" latest.json --repo "$REPO" --clobber
+          echo "✅ latest.json 已上传（应用内更新清单）"

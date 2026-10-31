@@ -4,6 +4,7 @@
 import JSZip from "jszip";
 // Vite ?raw 编译时将 argon2 WASM 内联为字符串，无需网络请求
 import hashWasmBundle from 'hash-wasm/dist/argon2.umd.min.js?raw';
+import { isZh, t } from "../i18n";
 
 /**
  * 生成扩展图标 SVG Data URL
@@ -33,10 +34,10 @@ export async function generateExtensionZip(
   // 1. manifest.json (Manifest V3)
   const manifestJson = {
     manifest_version: 3,
-    name: "SecureVault - 零知识加密密码保险箱扩展",
+    name: t("SecureVault - 零知识加密密码保险箱扩展"),
     short_name: "SecureVault",
     version: appVersion,
-    description: "SecureVault 浏览器无痕密码自动填充与零知识本地加密保险箱扩展",
+    description: t("SecureVault 浏览器无痕密码自动填充与零知识本地加密保险箱扩展"),
     author: "SecureVault Cryptography Team",
     permissions: ["storage", "activeTab", "scripting"],
     host_permissions: ["<all_urls>"],
@@ -45,7 +46,7 @@ export async function generateExtensionZip(
     },
     action: {
       default_popup: "popup.html",
-      default_title: "SecureVault 密码保险箱"
+      default_title: t("SecureVault 密码保险箱")
     },
     background: {
       service_worker: "background.js"
@@ -70,7 +71,7 @@ export async function generateExtensionZip(
   // 2. 嵌入加密备份数据（由桌面端导出）
   const backupContent = encryptedPayload || JSON.stringify({
     version: appVersion,
-    note: "请在 SecureVault 桌面应用中导出加密备份后重新打包扩展。",
+    note: t("请在 SecureVault 桌面应用中导出加密备份后重新打包扩展。"),
     isEmpty: true
   }, null, 2);
   zip.file("vault_backup.json", backupContent);
@@ -208,6 +209,16 @@ export async function generateExtensionZip(
   zip.file("popup.html", popupHtml);
 
   // 6. popup.js — 加载内嵌加密备份 + 解锁 + 域名匹配 + 填充
+  // 带运行时变量的文案在生成时按界面语言固化为 JS 表达式（扩展端无 i18n 运行库）
+  const toastUnlocked = isZh
+    ? '"🔓 保险箱已解密（" + kdf.toUpperCase() + "），共 " + vaultItems.length + " 条凭证"'
+    : '"🔓 Vault decrypted (" + kdf.toUpperCase() + "), " + vaultItems.length + " credentials"';
+  const toastSynced = isZh
+    ? '"✅ 已同步并刷新数据，共 " + vaultItems.length + " 条凭证"'
+    : '"✅ Synced and refreshed, " + vaultItems.length + " credentials"';
+  const toastAutofill = isZh
+    ? 'res && res.success ? "✨ 凭证已无痕填充至网页！" : "⚠️ 未检测到密码输入框，已复制密码"'
+    : 'res && res.success ? "✨ Credential filled silently!" : "⚠️ No password field found, password copied"';
   const popupJs = [
     '// SecureVault Extension Popup Logic',
     'let vaultItems = [];',
@@ -248,11 +259,11 @@ export async function generateExtensionZip(
     '',
     '  container.innerHTML = "<div class=\\"card\\" style=\\"text-align:center;padding:14px 8px;\\">" +',
     '    "<div style=\\"font-size:28px;margin-bottom:8px;\\">🔐</div>" +',
-    '    "<h3 style=\\"font-size:14px;margin-bottom:4px;\\">解密 SecureVault 保险箱</h3>" +',
-    '    "<p style=\\"font-size:11px;color:#64748b;margin-bottom:10px;\\">请输入主密码以解密内嵌的加密备份数据</p>" +',
-    '    "<input type=\\"password\\" id=\\"masterPassInput\\" class=\\"input\\" placeholder=\\"输入主解密密码...\\" />" +',
-    '    "<button class=\\"btn\\" id=\\"unlockBtn\\">派生解密并开启填充</button>" +',
-    '    "<div style=\\"margin-top:14px;border-top:1px solid #f1f5f9;padding-top:10px;font-size:10px;color:#94a3b8;\\">扩展内置加密备份由 SecureVault 桌面应用打包生成</div>" +',
+    '    "<h3 style=\\"font-size:14px;margin-bottom:4px;\\">' + t("解密 SecureVault 保险箱") + '</h3>" +',
+    '    "<p style=\\"font-size:11px;color:#64748b;margin-bottom:10px;\\">' + t("请输入主密码以解密内嵌的加密备份数据") + '</p>" +',
+    '    "<input type=\\"password\\" id=\\"masterPassInput\\" class=\\"input\\" placeholder=\\"" + t("输入主解密密码...") + "\\" />" +',
+    '    "<button class=\\"btn\\" id=\\"unlockBtn\\">' + t("派生解密并开启填充") + '</button>" +',
+    '    "<div style=\\"margin-top:14px;border-top:1px solid #f1f5f9;padding-top:10px;font-size:10px;color:#94a3b8;\\">' + t("扩展内置加密备份由 SecureVault 桌面应用打包生成") + '</div>" +',
     '    "</div>";',
     '',
     '  document.getElementById("unlockBtn").addEventListener("click", handleUnlock);',
@@ -260,7 +271,7 @@ export async function generateExtensionZip(
     '',
     'async function handleUnlock() {',
     '  const pass = document.getElementById("masterPassInput").value;',
-    '  if (!pass) return showToast("请输入主密码！");',
+    '  if (!pass) return showToast("' + t("请输入主密码！") + '");',
     '',
     '  try {',
     '    // 优先读取同步数据，不存在则用内嵌出厂备份',
@@ -274,12 +285,12 @@ export async function generateExtensionZip(
     '    }',
     '',
     '    if (backup.isEmpty) {',
-    '      showToast("⚠️ 请先在桌面应用中导出加密备份后重新打包扩展");',
+    '      showToast("' + t("⚠️ 请先在桌面应用中导出加密备份后重新打包扩展") + '");',
     '      return;',
     '    }',
     '',
     '    if (!backup.encryptedPayload || !backup.salt) {',
-    '      showToast("⚠️ 备份数据格式无效，请重新在桌面应用中导出");',
+    '      showToast("' + t("⚠️ 备份数据格式无效，请重新在桌面应用中导出") + '");',
     '      return;',
     '    }',
     '',
@@ -336,17 +347,17 @@ export async function generateExtensionZip(
     '    chrome.runtime.sendMessage({ action: "SET_UNLOCKED_DATA", vault: vaultItems }, () => {',
     '      isUnlocked = true;',
     '      renderUnlockedView();',
-    '      showToast("🔓 保险箱已解密（" + kdf.toUpperCase() + "），共 " + vaultItems.length + " 条凭证");',
+    '      showToast(' + toastUnlocked + ');',
     '    });',
     '  } catch (err) {',
     '    console.error("解密失败:", err);',
-    '    showToast("❌ 密码错误或备份数据已损坏");',
+    '    showToast("' + t("❌ 密码错误或备份数据已损坏") + '");',
     '  }',
     '}',
     '',
     'function renderUnlockedView() {',
     '  const container = document.getElementById("appContent");',
-    '  document.getElementById("headerActions").innerHTML = \'<button id="syncBtn" style="background:transparent;border:1px solid #cbd5e1;color:#64748b;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;margin-right:4px;">📥 同步</button><button id="lockBtn" style="background:transparent;border:1px solid #cbd5e1;color:#64748b;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;">锁定</button>\';',
+    '  document.getElementById("headerActions").innerHTML = \'<button id="syncBtn" style="background:transparent;border:1px solid #cbd5e1;color:#64748b;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;margin-right:4px;">📥 ' + t("同步") + '</button><button id="lockBtn" style="background:transparent;border:1px solid #cbd5e1;color:#64748b;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;">' + t("锁定") + '</button>\';',
     '  document.getElementById("syncBtn").addEventListener("click", renderSyncView);',
     '  document.getElementById("lockBtn").addEventListener("click", () => {',
     '    chrome.runtime.sendMessage({ action: "LOCK_VAULT" }, () => {',
@@ -366,12 +377,12 @@ export async function generateExtensionZip(
     '  if (isRealDomain) {',
     '    const matchedContent = matchedItems.length > 0',
     '      ? matchedItems.map(item => renderItemCard(item, true)).join("")',
-    '      : \'<div style="font-size:11px;color:#94a3b8;font-style:italic;padding:8px;background:#fff;border-radius:6px;border:1px dashed #cbd5e1;">未在该域名匹配到凭证</div>\';',
-    '    matchedHtml = \'<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:11px;font-weight:bold;color:#475569;">📍 当前网站匹配凭证</span><span class="domain-tag">\' + currentTabDomain + \'</span></div>\' + matchedContent + \'</div>\';',
+    '      : \'<div style="font-size:11px;color:#94a3b8;font-style:italic;padding:8px;background:#fff;border-radius:6px;border:1px dashed #cbd5e1;">' + t("未在该域名匹配到凭证") + '</div>\';',
+    '    matchedHtml = \'<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;"><span style="font-size:11px;font-weight:bold;color:#475569;">' + t("📍 当前网站匹配凭证") + '</span><span class="domain-tag">\' + currentTabDomain + \'</span></div>\' + matchedContent + \'</div>\';',
     '  }',
     '',
     '  container.innerHTML = matchedHtml +',
-    '    \'<div style="margin-bottom:6px;"><input type="text" id="searchInput" class="input" placeholder="🔍 搜索所有凭证..." /></div>\' +',
+    '    \'<div style="margin-bottom:6px;"><input type="text" id="searchInput" class="input" placeholder="🔍 ' + t("搜索所有凭证...") + '" /></div>\' +',
     '    \'<div id="itemsList" style="max-height:280px;overflow-y:auto;">\' + vaultItems.map(item => renderItemCard(item, false)).join("") + \'</div>\';',
     '',
     '  document.getElementById("searchInput").addEventListener("input", handleSearch);',
@@ -386,7 +397,7 @@ export async function generateExtensionZip(
     '      const u = target.getAttribute("data-user");',
     '      const p = target.getAttribute("data-pass");',
     '      chrome.runtime.sendMessage({ action: "AUTOFILL_CREDENTIALS", username: u, password: p }, (res) => {',
-    '        showToast(res && res.success ? "✨ 凭证已无痕填充至网页！" : "⚠️ 未检测到密码输入框，已复制密码");',
+    '        showToast(' + toastAutofill + ');',
     '        if (!res || !res.success && p) navigator.clipboard.writeText(p);',
     '      });',
     '    });',
@@ -397,8 +408,8 @@ export async function generateExtensionZip(
     '      const target = e.currentTarget;',
     '      const p = target.getAttribute("data-pass");',
     '      if (p) navigator.clipboard.writeText(p);',
-    '      target.textContent = "已复制 ✓";',
-    '      setTimeout(() => { target.textContent = "复制密码"; }, 1500);',
+    '      target.textContent = "' + t("已复制 ✓") + '";',
+    '      setTimeout(() => { target.textContent = "' + t("复制密码") + '"; }, 1500);',
     '    });',
     '  });',
     '}',
@@ -417,27 +428,27 @@ export async function generateExtensionZip(
     'function renderSyncView() {',
     '  const container = document.getElementById("appContent");',
     '  container.innerHTML = "<div class=\\"card\\" style=\\"margin-bottom:10px;\\">" +',
-    '    "<h3 style=\\"font-size:13px;margin-bottom:8px;\\">📥 同步最新加密备份</h3>" +',
-    '    "<p style=\\"font-size:10px;color:#64748b;margin-bottom:10px;\\">请将桌面端「复制扩展同步密文」的内容粘贴到下方，更新后无需重新生成扩展包。</p>" +',
-    '    "<textarea id=\\"syncPayloadText\\" class=\\"input\\" style=\\"height:120px;font-family:monospace;font-size:10px;\\" placeholder=\\"粘贴桌面端复制的加密备份数据...\\"></textarea>" +',
+    '    "<h3 style=\\"font-size:13px;margin-bottom:8px;\\">' + t("📥 同步最新加密备份") + '</h3>" +',
+    '    "<p style=\\"font-size:10px;color:#64748b;margin-bottom:10px;\\">' + t("请将桌面端「复制扩展同步密文」的内容粘贴到下方，更新后无需重新生成扩展包。") + '</p>" +',
+    '    "<textarea id=\\"syncPayloadText\\" class=\\"input\\" style=\\"height:120px;font-family:monospace;font-size:10px;\\" placeholder=\\"" + t("粘贴桌面端复制的加密备份数据...") + "\\"></textarea>" +',
     '    "<div style=\\"display:flex;gap:8px;\\">" +',
-    '      "<button class=\\"btn\\" id=\\"saveSyncBtn\\">保存并更新保险箱</button>" +',
-    '      "<button class=\\"btn btn-secondary\\" id=\\"cancelSyncBtn\\">返回</button>" +',
+    '      "<button class=\\"btn\\" id=\\"saveSyncBtn\\">' + t("保存并更新保险箱") + '</button>" +',
+    '      "<button class=\\"btn btn-secondary\\" id=\\"cancelSyncBtn\\">' + t("返回") + '</button>" +',
     '    "</div>" +',
     '    "</div>";',
     '',
     '  document.getElementById("saveSyncBtn").addEventListener("click", () => {',
     '    const raw = document.getElementById("syncPayloadText").value.trim();',
-    '    if (!raw) return showToast("请粘贴有效的加密数据 JSON！");',
+    '    if (!raw) return showToast("' + t("请粘贴有效的加密数据 JSON！") + '");',
     '    try {',
     '      const parsed = JSON.parse(raw);',
     '      if (!parsed.encryptedPayload || !parsed.salt) {',
-    '        showToast("⚠️ 数据格式无效：缺少加密字段，请重新复制");',
+    '        showToast("' + t("⚠️ 数据格式无效：缺少加密字段，请重新复制") + '");',
     '        return;',
     '      }',
     '      chrome.storage.local.set({ vault_sync: parsed }, async () => {',
     '        if (!currentPass) {',
-    '          showToast("✅ 已保存同步数据，锁定后重新解锁即可加载");',
+    '          showToast("' + t("✅ 已保存同步数据，锁定后重新解锁即可加载") + '");',
     '          renderUnlockedView();',
     '          return;',
     '        }',
@@ -460,15 +471,15 @@ export async function generateExtensionZip(
     '          vaultItems = payload.vaultItems || [];',
     '          chrome.runtime.sendMessage({ action: "SET_UNLOCKED_DATA", vault: vaultItems }, () => {',
     '            renderUnlockedView();',
-    '            showToast("✅ 已同步并刷新数据，共 " + vaultItems.length + " 条凭证");',
+    '            showToast(' + toastSynced + ');',
     '          });',
     '        } catch (e) {',
-    '          showToast("❌ 解密失败，密码不匹配或数据损坏");',
+    '          showToast("' + t("❌ 解密失败，密码不匹配或数据损坏") + '");',
     '          renderUnlockedView();',
     '        }',
     '      });',
     '    } catch (e) {',
-    '      showToast("❌ JSON 格式错误，请检查粘贴内容");',
+    '      showToast("' + t("❌ JSON 格式错误，请检查粘贴内容") + '");',
     '    }',
     '  });',
     '',
@@ -477,17 +488,17 @@ export async function generateExtensionZip(
     '',
     'function renderItemCard(item, isMatched) {',
     '  const style = isMatched ? "border-color:#6366f1;background:#f5f3ff;" : "";',
-    '  const safeTitle = escapeHtml(item.title || "未命名");',
+    '  const safeTitle = escapeHtml(item.title || "' + t("未命名") + '");',
     '  const safeUrl = escapeHtml(item.url || "");',
-    '  const safeUser = escapeHtml(item.username || "未设定用户名");',
+    '  const safeUser = escapeHtml(item.username || "' + t("未设定用户名") + '");',
     '  const attrUser = escapeAttr(item.username || "");',
     '  const attrPass = escapeAttr(item.password || "");',
     '  return \'<div class="item-card" style="\' + style + \'">\' +',
     '    \'<div class="item-title"><span>\' + safeTitle + \'</span><span style="font-size:10px;color:#94a3b8;font-weight:normal;">\' + safeUrl + \'</span></div>\' +',
     '    \'<div class="item-user">\' + safeUser + \'</div>\' +',
     '    \'<div class="actions">\' +',
-    '    \'<button class="btn btn-xs autofill-btn" data-user="\' + attrUser + \'" data-pass="\' + attrPass + \'">⚡ 一键填充</button>\' +',
-    '    \'<button class="btn btn-xs btn-secondary copy-pass-btn" data-pass="\' + attrPass + \'">🔑 复制密码</button>\' +',
+    '    \'<button class="btn btn-xs autofill-btn" data-user="\' + attrUser + \'" data-pass="\' + attrPass + \'">⚡ ' + t("一键填充") + '</button>\' +',
+    '    \'<button class="btn btn-xs btn-secondary copy-pass-btn" data-pass="\' + attrPass + \'">🔑 ' + t("复制密码") + '</button>\' +',
     '    \'</div></div>\';',
     '}',
     '',
@@ -505,7 +516,7 @@ export async function generateExtensionZip(
   zip.file("icons/icon.svg", createExtensionIconSvg());
 
   // 8. README.md
-  const readmeContent = `# SecureVault Manifest V3 浏览器扩展安装指南
+  const readmeContent = isZh ? `# SecureVault Manifest V3 浏览器扩展安装指南
 
 ## 🚀 支持的浏览器
 
@@ -538,6 +549,39 @@ export async function generateExtensionZip(
 - 无任何网络请求，100% 本地运行
 
 > 如需更换凭证数据，请在桌面应用中重新导出备份并重新打包扩展。
+` : `# SecureVault Manifest V3 Browser Extension — Installation Guide
+
+## 🚀 Supported Browsers
+
+Built on the W3C WebExtensions Manifest V3 standard, compatible with 10+ browsers:
+
+1. Google Chrome (Windows / macOS / Linux / ChromeOS)
+2. Microsoft Edge (Windows / macOS)
+3. Brave Browser
+4. Firefox
+5. Safari (macOS)
+6. Arc Browser
+7. Vivaldi
+8. Opera / Opera GX
+9. Kiwi Browser (Android)
+10. Orion Browser (macOS / iOS)
+
+## 🛠️ Installation (Chromium browsers)
+
+1. Unzip SecureVault_Browser_Extension.zip to a local folder.
+2. Open chrome://extensions/ in the address bar (Edge: edge://extensions/).
+3. Enable **"Developer mode"** in the top-right corner.
+4. Click **"Load unpacked"** and select the unzipped folder.
+
+## 🔐 Zero-Knowledge Security
+
+- The extension embeds an AES-256-GCM encrypted backup exported by the SecureVault desktop app
+- Unlocking derives the key locally via Web Crypto API (PBKDF2) + AES-GCM decryption
+- The key is kept only in browser **session memory** (never written to disk) and cleared when the browser closes
+- You can also click "Lock" at any time to clear it manually
+- No network requests — 100% local
+
+> To update credentials, re-export the backup from the desktop app and rebuild the extension.
 `;
   zip.file("README.md", readmeContent);
 

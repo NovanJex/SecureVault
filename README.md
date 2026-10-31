@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.7.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -53,7 +53,7 @@
 | 数据加密 | **AES-256-GCM** | 随机 Nonce，认证加密，防篡改 |
 | 文件写入 | 原子写入（临时文件 + 重命名） | 防止意外断电导致数据损坏 |
 | 完整性校验 | **SHA-256** | 导入备份时自动验证 |
-| 存储位置 | 系统应用数据目录 | Windows `%LOCALAPPDATA%` / macOS `Application Support` |
+| 存储位置 | 系统应用数据目录 / 自定义目录 | 默认 Windows `%LOCALAPPDATA%` / macOS `Application Support`，可在设置中改为同步盘目录 |
 
 ---
 
@@ -95,7 +95,10 @@
 ### 🌐 界面与更新
 
 - **多语言界面** — 跟随系统语言自动切换（中文环境中文，其余英文）
+- **应用内在线更新**（Windows / macOS）— 设置页检查更新、minisign 签名校验、下载安装并自动重启
 - **AppImage 自动更新** — 内置更新信息（`.upd_info` + `.zsync`），支持 AppImageUpdate 增量更新
+- **自定义数据目录** — 保险箱可放入 OneDrive / 坚果云 / NAS 等同步盘，多设备共享加密保险箱
+- **多语言扩展模板** — 生成的浏览器扩展包跟随界面语言（中 / 英）
 
 ---
 
@@ -149,13 +152,13 @@ src/
 │   ├── otp.ts                    # TOTP 密钥解析
 │   ├── dateUtils.ts              # 日期与到期计算
 │   └── wordlist.ts               # BIP39 2048 英文词库
-├── i18n.ts              # 界面国际化（中英字典）
+├── i18n.ts              # 界面国际化（中英字典 + 后端错误码本地化）
 ├── types.ts             # 类型定义
 ├── App.tsx              # 主应用组件
 ├── main.tsx             # 入口
 └── index.css            # 全局样式与动画
 src-tauri/
-├── src/main.rs          # Rust 加密后端（12 个 Tauri 命令）
+├── src/main.rs          # Rust 加密后端（14 个 Tauri 命令）
 ├── Cargo.toml           # Rust 依赖
 ├── capabilities/        # Tauri 插件权限
 └── icons/               # 应用图标（PNG, ICO, ICNS）
@@ -198,6 +201,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.7.0` | 2026-10-31 | 自定义数据目录、应用内在线更新、扩展模板多语言、Release 说明双语、后端错误消息多语言 |
 | `v1.6.0` | 2026-10-23 | 密码历史版本、回收站、最近使用排序、安全报告导出、AppImage 自动更新 |
 | `v1.5.5` | 2026-10-09 | 界面多语言（跟随系统语言，非中文环境自动英文）|
 | `v1.5.4` | 2026-10-08 | Linux AppImage 沙箱兼容修复、命名规范化 |

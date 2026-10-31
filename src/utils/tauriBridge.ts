@@ -37,6 +37,13 @@ export const loadSecureVaultFile = (): Promise<string> => {
   return invoke<string>('load_vault_file');
 };
 
+/** 当前保险箱数据目录（自定义或系统默认） */
+export const getDataDir = (): Promise<string> => invoke<string>('get_data_dir');
+
+/** 设置保险箱数据目录（dir=null 恢复系统默认；migrate=true 迁移现有 vault 文件） */
+export const setDataDir = (dir: string | null, migrate: boolean): Promise<void> =>
+  invoke<void>('set_data_dir', { dir, migrate });
+
 // ============================================================
 // 辅助命令
 // ============================================================

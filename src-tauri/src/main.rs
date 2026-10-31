@@ -18,7 +18,7 @@ use tauri::{AppHandle, Manager};
 #[tauri::command]
 fn derive_master_key(password: String, salt_b64: String, kdf: Option<String>) -> Result<String, String> {
     let salt = BASE64.decode(salt_b64)
-        .map_err(|e| format!("Salt Base64 解码失败: {}", e))?;
+        .map_err(|e| format!("ERR_SALT_B64: {}", e))?;
 
     let mut key = [0u8; 32]; // 256-bit key
 
@@ -37,10 +37,10 @@ fn derive_master_key(password: String, salt_b64: String, kdf: Option<String>) ->
             let argon2 = Argon2::new(
                 Argon2id,
                 Version::V0x13,
-                Params::new(65_536, 4, 4, Some(Params::DEFAULT_OUTPUT_LEN)).map_err(|e| e.to_string())?,
+                Params::new(65_536, 4, 4, Some(Params::DEFAULT_OUTPUT_LEN)).map_err(|e| format!("ERR_KDF: {}", e))?,
             );
             argon2.hash_password_into(password.as_bytes(), &salt, &mut key)
-                .map_err(|e| format!("Argon2id 派生失败: {}", e))?;
+                .map_err(|e| format!("ERR_KDF: {}", e))?;
         }
     }
 
@@ -51,10 +51,10 @@ fn derive_master_key(password: String, salt_b64: String, kdf: Option<String>) ->
 #[tauri::command]
 fn encrypt_vault(plaintext: String, key_b64: String) -> Result<String, String> {
     let key_bytes = BASE64.decode(key_b64)
-        .map_err(|e| format!("Key decode failed: {}", e))?;
+        .map_err(|e| format!("ERR_KEY_DECODE: {}", e))?;
         
     if key_bytes.len() != 32 {
-        return Err("Invalid key size, must be 32 bytes (256-bit)".into());
+        return Err("ERR_KEY_SIZE: must be 32 bytes (256-bit)".into());
     }
     
     let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
@@ -68,7 +68,7 @@ fn encrypt_vault(plaintext: String, key_b64: String) -> Result<String, String> {
     
     let ciphertext = cipher
         .encrypt(nonce, plaintext.as_bytes())
-        .map_err(|e| format!("Encryption failed: {}", e))?;
+        .map_err(|e| format!("ERR_ENCRYPT: {}", e))?;
         
     // 将 12字节 Nonce 和 密文 拼接打包
     let mut packed = Vec::with_capacity(12 + ciphertext.len());
@@ -82,16 +82,16 @@ fn encrypt_vault(plaintext: String, key_b64: String) -> Result<String, String> {
 #[tauri::command]
 fn decrypt_vault(ciphertext_b64: String, key_b64: String) -> Result<String, String> {
     let key_bytes = BASE64.decode(key_b64)
-        .map_err(|e| format!("Key decode failed: {}", e))?;
+        .map_err(|e| format!("ERR_KEY_DECODE: {}", e))?;
         
     let packed_bytes = BASE64.decode(ciphertext_b64)
-        .map_err(|e| format!("Ciphertext decode failed: {}", e))?;
+        .map_err(|e| format!("ERR_CIPHERTEXT_B64: {}", e))?;
         
     if key_bytes.len() != 32 {
-        return Err("Invalid key size".into());
+        return Err("ERR_KEY_SIZE".into());
     }
     if packed_bytes.len() < 12 {
-        return Err("Ciphertext too short, missing nonce".into());
+        return Err("ERR_CIPHERTEXT_SHORT".into());
     }
     
     let key = aes_gcm::Key::<Aes256Gcm>::from_slice(&key_bytes);
@@ -104,25 +104,124 @@ fn decrypt_vault(ciphertext_b64: String, key_b64: String) -> Result<String, Stri
     
     let decrypted_bytes = cipher
         .decrypt(nonce, encrypted_data)
-        .map_err(|e| format!("Decryption failed (maybe wrong master password?): {}", e))?;
+        .map_err(|e| format!("ERR_DECRYPT: {}", e))?;
         
     String::from_utf8(decrypted_bytes)
-        .map_err(|e| format!("Invalid UTF-8 string: {}", e))
+        .map_err(|e| format!("ERR_UTF8: {}", e))
 }
 
-// 获取本地系统安全的本地应用存档路径 (e.g. AppData/Roaming/SecureVault)
-fn get_vault_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let mut path = app.path().app_data_dir()
-        .map_err(|e| format!("Failed to resolve app data directory: {}", e))?;
-    
-    // 创建数据文件夹如果不存在
+// ---------- 数据目录配置 ----------
+// 自定义数据目录持久化在 app_config_dir/config.json 的 dataDir 字段；
+// 未配置时回退到系统 AppData（保持旧行为）。
+// 该配置文件必须放在固定位置（不能放进数据目录本身），否则切换目录后无法找到配置。
+
+fn config_file_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let mut path = app.path().app_config_dir()
+        .map_err(|e| format!("ERR_CONFIG_DIR: {}", e))?;
     if !path.exists() {
         fs::create_dir_all(&path)
-            .map_err(|e| format!("Failed to create data directory: {}", e))?;
+            .map_err(|e| format!("ERR_CONFIG_DIR: {}", e))?;
     }
-    
-    path.push("vault.enc");
+    path.push("config.json");
     Ok(path)
+}
+
+fn read_config(app: &AppHandle) -> serde_json::Value {
+    match config_file_path(app) {
+        Ok(p) if p.exists() => std::fs::read_to_string(&p)
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_else(|| serde_json::json!({})),
+        _ => serde_json::json!({}),
+    }
+}
+
+/// 当前数据目录：自定义（config.dataDir）优先，否则系统 AppData
+fn resolve_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    if let Some(d) = read_config(app).get("dataDir").and_then(|v| v.as_str()) {
+        if !d.trim().is_empty() {
+            return Ok(PathBuf::from(d));
+        }
+    }
+    app.path().app_data_dir()
+        .map_err(|e| format!("ERR_DATA_DIR_RESOLVE: {}", e))
+}
+
+// 获取本地系统安全的本地应用存档路径 (e.g. AppData/Roaming/SecureVault 或自定义目录)
+fn get_vault_path(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = resolve_data_dir(app)?;
+    if !dir.exists() {
+        fs::create_dir_all(&dir)
+            .map_err(|e| format!("ERR_DATA_DIR_CREATE: {}", e))?;
+    }
+    Ok(dir.join("vault.enc"))
+}
+
+/// 获取当前保险箱数据目录（设置页展示用）
+#[tauri::command]
+fn get_data_dir(app: AppHandle) -> Result<String, String> {
+    Ok(resolve_data_dir(&app)?.to_string_lossy().into_owned())
+}
+
+/// 设置保险箱数据目录（dir = None 表示恢复系统默认）。
+/// migrate=true 时把现有 vault.enc 复制到新目录；若目标目录已有 vault.enc 则拒绝，防止覆盖。
+#[tauri::command]
+fn set_data_dir(app: AppHandle, dir: Option<String>, migrate: bool) -> Result<(), String> {
+    let old_vault = get_vault_path(&app)?;
+
+    let new_dir: Option<PathBuf> = match dir.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
+        Some(d) => Some(PathBuf::from(d)),
+        None => None,
+    };
+
+    // 校验目标目录：可创建、可写
+    if let Some(ref nd) = new_dir {
+        if !nd.exists() {
+            fs::create_dir_all(nd)
+                .map_err(|e| format!("ERR_DIR_CREATE: {}", e))?;
+        }
+        let probe = nd.join(".sv_write_probe");
+        fs::write(&probe, b"probe")
+            .map_err(|e| format!("ERR_DIR_UNWRITABLE: {}", e))?;
+        let _ = fs::remove_file(&probe);
+    }
+
+    // 可选迁移现有保险箱文件
+    if migrate {
+        let target_vault = match &new_dir {
+            Some(nd) => nd.join("vault.enc"),
+            None => app.path().app_data_dir()
+                .map_err(|e| format!("ERR_DATA_DIR_RESOLVE: {}", e))?
+                .join("vault.enc"),
+        };
+        if old_vault.exists() && old_vault != target_vault {
+            if target_vault.exists() {
+                return Err("ERR_TARGET_EXISTS: vault.enc already exists in the target folder".to_string());
+            }
+            fs::copy(&old_vault, &target_vault)
+                .map_err(|e| format!("ERR_MIGRATE: {}", e))?;
+        }
+    }
+
+    // 持久化配置
+    let cfg_path = config_file_path(&app)?;
+    let mut cfg = read_config(&app);
+    match new_dir {
+        Some(nd) => {
+            cfg["dataDir"] = serde_json::Value::String(nd.to_string_lossy().into_owned());
+        }
+        None => {
+            if let Some(obj) = cfg.as_object_mut() {
+                obj.remove("dataDir");
+            }
+        }
+    }
+    let serialized = serde_json::to_string_pretty(&cfg)
+        .map_err(|e| format!("ERR_CONFIG_SERIALIZE: {}", e))?;
+    fs::write(&cfg_path, serialized)
+        .map_err(|e| format!("ERR_CONFIG_WRITE: {}", e))?;
+
+    Ok(())
 }
 
 // 4. 原子写入：先写临时文件，成功后再原子重命名，防止写入中断导致数据损坏
@@ -133,16 +232,16 @@ fn save_vault_file(app: AppHandle, ciphertext_b64: String) -> Result<(), String>
 
     // 写入临时文件
     let mut file = File::create(&tmp_path)
-        .map_err(|e| format!("创建临时文件失败: {}", e))?;
+        .map_err(|e| format!("ERR_TMP_CREATE: {}", e))?;
     file.write_all(ciphertext_b64.as_bytes())
-        .map_err(|e| format!("写入临时文件失败: {}", e))?;
+        .map_err(|e| format!("ERR_TMP_WRITE: {}", e))?;
     file.flush()
-        .map_err(|e| format!("刷新缓冲区失败: {}", e))?;
+        .map_err(|e| format!("ERR_FLUSH: {}", e))?;
     drop(file);
 
     // 原子替换
     fs::rename(&tmp_path, &file_path)
-        .map_err(|e| format!("原子替换文件失败: {}", e))?;
+        .map_err(|e| format!("ERR_RENAME: {}", e))?;
 
     Ok(())
 }
@@ -156,11 +255,11 @@ fn load_vault_file(app: AppHandle) -> Result<String, String> {
     }
     
     let mut file = File::open(file_path)
-        .map_err(|e| format!("Failed to open storage file: {}", e))?;
+        .map_err(|e| format!("ERR_STORAGE_OPEN: {}", e))?;
         
     let mut contents = String::new();
     file.read_to_string(&mut contents)
-        .map_err(|e| format!("Failed to read storage file: {}", e))?;
+        .map_err(|e| format!("ERR_STORAGE_READ: {}", e))?;
         
     Ok(contents)
 }
@@ -169,14 +268,14 @@ fn load_vault_file(app: AppHandle) -> Result<String, String> {
 #[tauri::command]
 fn write_export_file(path: String, content: String) -> Result<(), String> {
     std::fs::write(&path, &content)
-        .map_err(|e| format!("写入导出文件失败: {}", e))
+        .map_err(|e| format!("ERR_EXPORT_WRITE: {}", e))
 }
 
 // 7. 从用户指定的文件路径读取文本（用于导入备份，自动检测 UTF-8/GBK/UTF-16 编码）
 #[tauri::command]
 fn read_export_file(path: String) -> Result<String, String> {
     let bytes = std::fs::read(&path)
-        .map_err(|e| format!("读取导入文件失败: {}", e))?;
+        .map_err(|e| format!("ERR_IMPORT_READ: {}", e))?;
 
     // 1. 尝试 UTF-8
     if let Ok(s) = String::from_utf8(bytes.clone()) {
@@ -212,9 +311,9 @@ fn compute_sha256(content: String) -> String {
 #[tauri::command]
 fn write_binary_file(path: String, data_b64: String) -> Result<(), String> {
     let bytes = BASE64.decode(data_b64)
-        .map_err(|e| format!("Base64 解码失败: {}", e))?;
+        .map_err(|e| format!("ERR_B64_DECODE: {}", e))?;
     std::fs::write(&path, &bytes)
-        .map_err(|e| format!("写入二进制文件失败: {}", e))
+        .map_err(|e| format!("ERR_BIN_WRITE: {}", e))
 }
 
 /// TOTP 生成结果（Tauri 自动序列化为 JSON 对象传给前端）
@@ -254,16 +353,16 @@ fn generate_totp(secret: String) -> Result<TotpResponse, String> {
 
     let normalized = normalize_totp_secret(&secret);
     if normalized.is_empty() {
-        return Err("TOTP 密钥为空".to_string());
+        return Err("ERR_TOTP_EMPTY".to_string());
     }
     let secret = Secret::Encoded(normalized);
     let bytes = secret.to_bytes()
-        .map_err(|e| format!("TOTP 密钥无效（应为 Base32 编码）: {}", e))?;
+        .map_err(|e| format!("ERR_TOTP_KEY: {}", e))?;
     // totp-rs 的 TOTP::new 强制要求密钥 ≥128 bits，但 GitHub/GitLab 等服务使用
     // 80 bits（16 字符）密钥，Google Authenticator 等主流验证器均接受，
     // 故使用 new_unchecked 跳过长度限制（Base32 合法性校验仍在上方保留）
     let totp = TOTP::new_unchecked(Algorithm::SHA1, 6, 0, 30, bytes);
-    let code = totp.generate_current().map_err(|e| e.to_string())?;
+    let code = totp.generate_current().map_err(|e| format!("ERR_TOTP_GEN: {}", e))?;
     let remaining = totp.ttl().unwrap_or(0);
 
     Ok(TotpResponse { code, remaining })
@@ -291,7 +390,7 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
     use secstr::SecStr;
 
     let data: serde_json::Value = serde_json::from_str(&items_json)
-        .map_err(|e| format!("凭证数据解析失败: {}", e))?;
+        .map_err(|e| format!("ERR_CRED_PARSE: {}", e))?;
     let items = data.get("items").and_then(|v| v.as_array()).cloned().unwrap_or_default();
 
     let mut config = DatabaseConfig::default();
@@ -423,9 +522,9 @@ fn export_kdbx(path: String, items_json: String, password: String) -> Result<(),
 
     let key = DatabaseKey::new().with_password(&password);
     let mut file = std::fs::File::create(&path)
-        .map_err(|e| format!("创建 KDBX 文件失败: {}", e))?;
+        .map_err(|e| format!("ERR_KDBX_CREATE: {}", e))?;
     db.save(&mut file, key)
-        .map_err(|e| format!("KDBX 保存失败: {}", e))?;
+        .map_err(|e| format!("ERR_KDBX_SAVE: {}", e))?;
 
     Ok(())
 }
@@ -440,9 +539,9 @@ fn import_kdbx(path: String, password: String) -> Result<String, String> {
 
     let key = DatabaseKey::new().with_password(&password);
     let mut file = std::fs::File::open(&path)
-        .map_err(|e| format!("打开 KDBX 文件失败: {}", e))?;
+        .map_err(|e| format!("ERR_KDBX_OPEN: {}", e))?;
     let db = Database::open(&mut file, key)
-        .map_err(|e| format!("KDBX 解密失败（请检查密码是否正确）: {}", e))?;
+        .map_err(|e| format!("ERR_KDBX_DECRYPT: {}", e))?;
 
     let mut items: Vec<serde_json::Value> = Vec::new();
     let mut folder_set: BTreeSet<String> = BTreeSet::new();
@@ -545,6 +644,8 @@ fn main() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let window = app.get_webview_window("main").unwrap();
             window.show().unwrap();
@@ -556,6 +657,8 @@ fn main() {
             decrypt_vault,
             save_vault_file,
             load_vault_file,
+            get_data_dir,
+            set_data_dir,
             write_export_file,
             read_export_file,
             compute_sha256,

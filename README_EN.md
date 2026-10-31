@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.6.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.7.0-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -55,7 +55,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 | Data Encryption | **AES-256-GCM** | Random 12-byte nonce, authenticated encryption, tamper-proof |
 | File I/O | Atomic write (temp + rename) | Prevents corruption on unexpected shutdown |
 | Integrity | **SHA-256** checksum | Verified on every backup import |
-| Storage | OS app data directory | `%LOCALAPPDATA%` (Windows) / `Application Support` (macOS) |
+| Storage | OS app data directory / custom directory | Defaults to `%LOCALAPPDATA%` (Windows) / `Application Support` (macOS); can be pointed at a sync folder in Settings |
 
 ---
 
@@ -97,7 +97,10 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 ### 🌐 Internationalization & Updates
 
 - **Multi-language UI** — follows the system locale (Chinese, English fallback)
+- **In-app updates** (Windows / macOS) — check, verify (minisign), download and install from Settings, then relaunch
 - **AppImage auto-update** — ships `.upd_info` + `.zsync` for AppImageUpdate
+- **Custom data directory** — put the vault in OneDrive / Nutstore / a NAS sync folder to share it across devices
+- **Multilingual extension template** — generated browser extension follows the UI language (Chinese / English)
 
 ---
 
@@ -151,13 +154,13 @@ src/
 │   ├── otp.ts                    # TOTP secret parsing
 │   ├── dateUtils.ts              # date & expiry helpers
 │   └── wordlist.ts               # BIP39 2048 English word list
-├── i18n.ts              # UI internationalization (zh/en dictionary)
+├── i18n.ts              # UI internationalization (zh/en dictionary + backend error localization)
 ├── types.ts             # type definitions
 ├── App.tsx              # main application component
 ├── main.tsx             # entry point
 └── index.css            # global styles & animations
 src-tauri/
-├── src/main.rs          # Rust crypto backend (12 Tauri commands)
+├── src/main.rs          # Rust crypto backend (14 Tauri commands)
 ├── Cargo.toml           # Rust dependencies
 ├── capabilities/        # Tauri plugin permissions
 └── icons/               # application icons (PNG, ICO, ICNS)
@@ -200,6 +203,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.7.0` | 2026-10-31 | Custom data directory, in-app updates, multilingual extension template, bilingual release notes, localized backend errors |
 | `v1.6.0` | 2026-10-23 | Password history, trash, recent-use sorting, security reports, AppImage auto-updates |
 | `v1.5.5` | 2026-10-09 | Multi-language UI (follows system locale, English fallback) |
 | `v1.5.4` | 2026-10-08 | Linux AppImage sandbox fix, naming convention |

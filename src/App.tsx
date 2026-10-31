@@ -41,10 +41,13 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 import { save, open } from '@tauri-apps/plugin-dialog';
+import { getVersion } from '@tauri-apps/api/app';
+import { check } from '@tauri-apps/plugin-updater';
+import { relaunch } from '@tauri-apps/plugin-process';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { ItemType, VaultItem, VaultFolder } from "./types";
 import { secureRandomIndex } from "./utils/vaultStorage";
-import { decryptVault, deriveMasterKey, exportKdbx, importKdbx } from "./utils/tauriBridge";
+import { decryptVault, deriveMasterKey, exportKdbx, importKdbx, getDataDir, setDataDir } from "./utils/tauriBridge";
 import { invoke } from '@tauri-apps/api/core';
 import { useVault } from "./hooks/useVault";
 import { usePasswordGenerator } from "./hooks/usePasswordGenerator";
@@ -64,7 +67,7 @@ import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/b
 import { convertKdbxPayload } from "./utils/kdbxImport";
 import { extractOtpSecret } from "./utils/otp";
 import { isExpired, daysUntilExpiry } from "./utils/dateUtils";
-import { t, tf } from "./i18n";
+import { t, tf, localizeError } from "./i18n";
 
 export default function App() {
   // ===== 保险箱核心 Hook =====
@@ -232,6 +235,112 @@ export default function App() {
   useEffect(() => {
     generatePassword();
   }, [genConfig, genType, passphraseWords, passphraseSeparator, passphraseCapitalize, passphraseAddNumber]);
+
+  // 软件更新（Tauri updater）
+  const [appVersion, setAppVersion] = useState<string>("");
+  const [updaterChecking, setUpdaterChecking] = useState(false);
+  const [updaterStatus, setUpdaterStatus] = useState<string>("");
+  const [updaterAvailable, setUpdaterAvailable] = useState<null | { version: string; body?: string }>(null);
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => {});
+  }, []);
+  const isLinuxPlatform = navigator.platform.toLowerCase().includes("linux");
+
+  const handleCheckUpdate = async () => {
+    if (isLinuxPlatform) {
+      setUpdaterStatus(t("Linux 版请通过 AppImageUpdate 更新（已内置 .zsync 更新信息）"));
+      return;
+    }
+    setUpdaterChecking(true);
+    setUpdaterStatus("");
+    setUpdaterAvailable(null);
+    try {
+      const update = await check();
+      if (update) {
+        setUpdaterAvailable({ version: update.version, body: update.body || "" });
+        setUpdaterStatus(t("发现新版本"));
+      } else {
+        setUpdaterStatus(t("已是最新版本"));
+      }
+    } catch (e) {
+      console.error("检查更新失败:", e);
+      // 404（尚未发布 latest.json）或网络不可达时给出可读提示；
+      // 原始错误已由上方 console.error 记录，不拼接显示以免撑开卡片
+      setUpdaterStatus(
+        /Could not fetch a valid release JSON|Failed to fetch|Network request|timed out|dns error|error sending request/i.test(String(e))
+          ? t("暂时无法获取更新信息：可能尚未发布新版本，或无法访问 GitHub（网络受限）。")
+          : t("❌ 检查更新失败") + ": " + localizeError(e)
+      );
+    } finally {
+      setUpdaterChecking(false);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    try {
+      const update = await check();
+      if (!update) {
+        setUpdaterStatus(t("已是最新版本"));
+        return;
+      }
+      setUpdaterChecking(true);
+      setUpdaterStatus(t("正在下载更新..."));
+      let downloaded = 0, total = 0;
+      await update.downloadAndInstall((event) => {
+        if (event.event === "Started") {
+          total = event.data.contentLength || 0;
+        } else if (event.event === "Progress") {
+          downloaded += event.data.chunkLength;
+          if (total > 0) setUpdaterStatus(t("正在下载更新...") + " " + Math.round(downloaded / total * 100) + "%");
+        } else if (event.event === "Finished") {
+          setUpdaterStatus(t("下载完成，正在安装..."));
+        }
+      });
+      await relaunch();
+    } catch (e) {
+      console.error("安装更新失败:", e);
+      setUpdaterStatus(
+        /Failed to fetch|Network request|timed out|dns error|error sending request/i.test(String(e))
+          ? t("下载更新失败，请检查网络后重试。")
+          : t("❌ 安装更新失败") + ": " + localizeError(e)
+      );
+      setUpdaterChecking(false);
+    }
+  };
+
+  // 数据存储目录（自定义目录 = 用户可放入同步盘实现跨设备同步）
+  const [dataDir, setDataDirPath] = useState<string>("");
+  useEffect(() => {
+    getDataDir().then(setDataDirPath).catch(() => {});
+  }, []);
+
+  /** 更改数据目录：选择文件夹 → 询问是否迁移 → 保存配置 → 重新加载 */
+  const handleChangeDataDir = async () => {
+    try {
+      const selected = await open({ directory: true, multiple: false, title: t("选择数据存储目录") });
+      if (!selected) return;
+      const dir = Array.isArray(selected) ? selected[0] : selected as string;
+      if (!dir) return;
+      const migrate = window.confirm(t("是否将现有保险箱数据迁移到新目录？（确定=迁移，取消=不迁移）"));
+      await setDataDir(dir, migrate);
+      window.alert(t("数据目录已更改，应用将重新加载。请用主密码重新解锁。"));
+      window.location.reload();
+    } catch (e) {
+      showToast(t("❌ 更改数据目录失败: ") + localizeError(e));
+    }
+  };
+
+  /** 恢复默认数据目录（可选迁移当前数据） */
+  const handleResetDataDir = async () => {
+    const migrate = window.confirm(t("恢复默认数据目录并迁移现有数据？（确定=迁移，取消=不迁移）"));
+    try {
+      await setDataDir(null, migrate);
+      window.alert(t("已恢复默认数据目录，应用将重新加载。"));
+      window.location.reload();
+    } catch (e) {
+      showToast(t("❌ 恢复默认目录失败: ") + localizeError(e));
+    }
+  };
 
   // 清理剪贴板计时器
   useEffect(() => {
@@ -774,7 +883,7 @@ export default function App() {
         content = await invoke<string>('read_export_file', { path: filePath });
       } catch (e) {
         console.error("读取文件失败:", e);
-        showToast(tf.fileReadFailed(String(e)));
+        showToast(tf.fileReadFailed(localizeError(e)));
         return;
       }
 
@@ -783,7 +892,7 @@ export default function App() {
         result = importBrowserFile(content);
       } catch (e) {
         console.error("CSV 解析失败:", e);
-        showToast(tf.csvParseError(String(e)));
+        showToast(tf.csvParseError(localizeError(e)));
         return;
       }
 
@@ -800,7 +909,7 @@ export default function App() {
       setShowBrowserImport(true);
     } catch (err) {
       console.error("浏览器导入失败:", err);
-      showToast(tf.importFailed(String(err)));
+      showToast(tf.importFailed(localizeError(err)));
     }
   };
 
@@ -822,7 +931,7 @@ export default function App() {
       setShowKdbxImportModal(true);
     } catch (err) {
       console.error("KDBX 导入失败:", err);
-      showToast(tf.importFailed(String(err)));
+      showToast(tf.importFailed(localizeError(err)));
     }
   };
 
@@ -858,7 +967,7 @@ export default function App() {
       setKdbxImportPassword("");
     } catch (err) {
       console.error("KDBX 解密失败:", err);
-      setKdbxImportError(`❌ ${String(err)}`);
+      setKdbxImportError(`❌ ${localizeError(err)}`);
     } finally {
       setIsKdbxImporting(false);
     }
@@ -906,7 +1015,7 @@ export default function App() {
       setKdbxExportConfirm("");
     } catch (err) {
       console.error("KDBX 导出失败:", err);
-      setKdbxExportError(tf.exportFailed(String(err)));
+      setKdbxExportError(tf.exportFailed(localizeError(err)));
     } finally {
       setIsKdbxExporting(false);
     }
@@ -2186,18 +2295,19 @@ export default function App() {
                                 </div>
                               </div>
 
-                              {/* Password Management Tools */}
+                              {/* Import external passwords + Change master password (combined card) */}
                               <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm text-left">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
                                   {/* 左：导入外部密码 */}
-                                  <div className="space-y-2.5">
-                                    <div>
-                                      <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
-                                        <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                                  <div className="flex flex-col h-full min-w-0">
+                                    <div className="border-b border-slate-100 pb-4">
+                                      <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
+                                        <Globe className="w-4 h-4 text-indigo-500" />
                                         <span>{t("导入外部密码")}</span>
-                                      </h5>
-                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{t("支持 Chrome/Edge/Firefox/1Password/LastPass/Bitwarden/Safari 的 CSV 或 JSON 文件。")}</p>
+                                      </h4>
+                                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{t("支持 Chrome/Edge/Firefox/1Password/LastPass/Bitwarden/Safari 的 CSV 或 JSON 文件。")}</p>
                                     </div>
+                                    <div className="pt-3">
                                     <button
                                       type="button"
                                       onClick={handleBrowserImport}
@@ -2206,55 +2316,23 @@ export default function App() {
                                       <Globe className="w-3.5 h-3.5" />
                                       <span>{t("选择密码文件")}</span>
                                     </button>
-                                  </div>
-
-                                  {/* 右：自动锁定 */}
-                                  <div className="space-y-2.5 md:border-l md:border-slate-100 md:pl-6">
-                                    <div>
-                                      <h5 className="text-[11px] font-bold text-slate-700 flex items-center space-x-1.5">
-                                        <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                                        <span>{t("自动锁定")}</span>
-                                      </h5>
-                                      <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">{t("超时后自动擦除内存中的密钥。")}</p>
-                                    </div>
-                                    <div className="relative">
-                                      <button type="button" onClick={() => setAutoLockOpen(!autoLockOpen)}
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-700 outline-none focus:border-indigo-500 cursor-pointer flex items-center justify-between transition-all">
-                                        <span className="font-semibold text-slate-800">{getTimeoutLabel(autoLockTimeout)}</span>
-                                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${autoLockOpen ? "rotate-180 text-indigo-500" : ""}`} />
-                                      </button>
-                                      {autoLockOpen && (
-                                        <>
-                                          <div className="fixed inset-0 z-10 cursor-default" onClick={() => setAutoLockOpen(false)} />
-                                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200/90 rounded-lg shadow-lg py-1 z-20">
-                                            {[0, 1, 5, 15, 30, 60].map(val => (
-                                              <button key={val} type="button" onClick={() => { setAutoLockTimeout(val); setAutoLockOpen(false); showToast(tf.autoLockSet(getTimeoutLabel(val))); }}
-                                                className={`w-full text-left px-2.5 py-1.5 text-[11px] flex items-center justify-between transition-colors cursor-pointer ${autoLockTimeout === val ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-50"}`}>
-                                                <span>{val === 0 ? t("从不锁定 (不推荐)") : getTimeoutLabel(val)}</span>
-                                                {autoLockTimeout === val && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
-                                              </button>
-                                            ))}
-                                          </div>
-                                        </>
-                                      )}
                                     </div>
                                   </div>
-                                </div>
-                              </div>
 
-                              {/* Change Master Password */}
-                              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4 text-left">
-                                <div className="border-b border-slate-100 pb-4">
-                                  <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
-                                    <KeyRound className="w-4 h-4 text-indigo-500" />
-                                    <span>{t("修改主密码")}</span>
-                                  </h4>
-                                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                                    {t("验证旧密码后即可更换新主密码，可选切换 KDF 算法。保险箱数据将用新密码重新加密保存。")}
-                                  </p>
-                                </div>
+                                  {/* Right: change master password */}
+                                  <div className="flex flex-col h-full min-w-0 md:border-l md:border-slate-100 md:pl-8">
+                                    <div className="border-b border-slate-100 pb-4">
+                                      <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
+                                        <KeyRound className="w-4 h-4 text-indigo-500" />
+                                        <span>{t("修改主密码")}</span>
+                                      </h4>
+                                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                        {t("验证旧密码后即可更换新主密码，可选切换 KDF 算法。保险箱数据将用新密码重新加密保存。")}
+                                      </p>
+                                    </div>
 
-                                {!showChangePassword ? (
+                                    <div className="pt-3">
+                                    {!showChangePassword ? (
                                   <button
                                     type="button"
                                     onClick={() => setShowChangePassword(true)}
@@ -2357,6 +2435,111 @@ export default function App() {
                                     </div>
                                   </form>
                                 )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Auto lock + Software update (combined card) */}
+                              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm text-left">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+                                  {/* 左：自动锁定 */}
+                                  <div className="flex flex-col h-full min-w-0">
+                                    <div className="border-b border-slate-100 pb-4">
+                                      <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
+                                        <Clock className="w-4 h-4 text-indigo-500" />
+                                        <span>{t("自动锁定")}</span>
+                                      </h4>
+                                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">{t("超时后自动擦除内存中的密钥。")}</p>
+                                    </div>
+                                    <div className="pt-3">
+                                    <div className="relative">
+                                      <button type="button" onClick={() => setAutoLockOpen(!autoLockOpen)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-[11px] text-slate-700 outline-none focus:border-indigo-500 cursor-pointer flex items-center justify-between transition-all">
+                                        <span className="font-semibold text-slate-800">{getTimeoutLabel(autoLockTimeout)}</span>
+                                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 shrink-0 ${autoLockOpen ? "rotate-180 text-indigo-500" : ""}`} />
+                                      </button>
+                                      {autoLockOpen && (
+                                        <>
+                                          <div className="fixed inset-0 z-10 cursor-default" onClick={() => setAutoLockOpen(false)} />
+                                          <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200/90 rounded-lg shadow-lg py-1 z-20">
+                                            {[0, 1, 5, 15, 30, 60].map(val => (
+                                              <button key={val} type="button" onClick={() => { setAutoLockTimeout(val); setAutoLockOpen(false); showToast(tf.autoLockSet(getTimeoutLabel(val))); }}
+                                                className={`w-full text-left px-2.5 py-1.5 text-[11px] flex items-center justify-between transition-colors cursor-pointer ${autoLockTimeout === val ? "bg-indigo-50 text-indigo-700 font-bold" : "text-slate-700 hover:bg-slate-50"}`}>
+                                                <span>{val === 0 ? t("从不锁定 (不推荐)") : getTimeoutLabel(val)}</span>
+                                                {autoLockTimeout === val && <Check className="w-3.5 h-3.5 text-indigo-500 shrink-0" />}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                    </div>
+                                  </div>
+
+                                  {/* Right: software update */}
+                                  <div className="flex flex-col h-full min-w-0 md:border-l md:border-slate-100 md:pl-8">
+                                    <div className="border-b border-slate-100 pb-4">
+                                      <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
+                                        <RefreshCw className="w-4 h-4 text-indigo-500" />
+                                        <span>{t("软件更新")}</span>
+                                      </h4>
+                                      <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                        {t("从 GitHub Releases 检查并安装新版本。")}
+                                      </p>
+                                    </div>
+                                    <div className="pt-3 space-y-3">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="text-[11px] font-mono text-slate-600">{t("当前版本")}: {appVersion || "…"}</span>
+                                      <button type="button" onClick={handleCheckUpdate} disabled={updaterChecking}
+                                        className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center space-x-1.5 shrink-0">
+                                        {updaterChecking && <RefreshCw className="w-3 h-3 animate-spin" />}
+                                        <span>{updaterChecking ? t("检查中...") : t("检查更新")}</span>
+                                      </button>
+                                    </div>
+                                    {updaterAvailable && (
+                                      <div className="bg-indigo-50/60 border border-indigo-100 rounded-lg p-3 space-y-2">
+                                        <p className="text-[11px] font-bold text-indigo-700">{t("发现新版本")}: v{updaterAvailable.version}</p>
+                                        {updaterAvailable.body && (
+                                          <p className="text-[10px] text-slate-600 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">{updaterAvailable.body}</p>
+                                        )}
+                                        <button type="button" onClick={handleInstallUpdate} disabled={updaterChecking}
+                                          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold text-xs py-2 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed">
+                                          {t("下载并安装")}
+                                        </button>
+                                      </div>
+                                    )}
+                                    {updaterStatus && <p className="text-[10px] text-slate-500 leading-relaxed break-words max-h-20 overflow-y-auto">{updaterStatus}</p>}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Data directory card */}
+                              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4 text-left">
+                                <div className="border-b border-slate-100 pb-4">
+                                  <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
+                                    <Folder className="w-4 h-4 text-indigo-500" />
+                                    <span>{t("数据存储目录")}</span>
+                                  </h4>
+                                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                    {t("把此目录放入 OneDrive / 坚果云 / NAS 等同步盘，即可在多台设备间自动同步加密保险箱。同一时间建议只在一台设备编辑。")}
+                                  </p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <div className="flex-1 min-w-[180px] flex items-center space-x-2 bg-slate-50 border border-slate-200/60 rounded-lg px-3 py-2">
+                                    <Folder className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span className="flex-1 text-[11px] font-mono text-slate-700 truncate select-all" title={dataDir}>{dataDir || "…"}</span>
+                                  </div>
+                                  <button type="button" onClick={handleResetDataDir}
+                                    className="shrink-0 text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors cursor-pointer px-1 py-1">
+                                    {t("恢复默认目录")}
+                                  </button>
+                                  <button type="button" onClick={handleChangeDataDir}
+                                    className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
+                                    {t("更改目录")}
+                                  </button>
+                                </div>
                               </div>
 
                             </div>

@@ -9,7 +9,7 @@ import {
 import type { VaultItem } from "../types";
 import { generateTotp } from "../utils/tauriBridge";
 import { isExpired, daysUntilExpiry, formatDateCn } from "../utils/dateUtils";
-import { t, tf } from "../i18n";
+import { t, tf, localizeError } from "../i18n";
 
 export interface CredentialDetailProps {
   item: VaultItem;
@@ -304,7 +304,7 @@ const TotpSection: React.FC<{ secret: string; onCopy: (text: string, label: stri
             setError("");
           }
         } catch (e) {
-          if (!cancelled) setError(String(e));
+          if (!cancelled) setError(localizeError(e));
         }
       } else {
         setRemaining(calcRemaining()); // 本地倒计时，不触碰 IPC
