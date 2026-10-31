@@ -421,7 +421,7 @@ jobs:
 
           cp notes_zh.md notes.md
           if [ -s notes_en.md ]; then
-            printf '\n---\n\n## 🇬🇧 English\n\n' >> notes.md
+            printf '\n---\n\n' >> notes.md
             cat notes_en.md >> notes.md
           else
             echo "ℹ️ CHANGELOG_EN.md 中无 v${VER} 英文段，Release 说明仅含中文"
