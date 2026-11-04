@@ -47,6 +47,22 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 
 ---
 
+## 📷 Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/securevault-main.png" alt="Main interface: credential list and detail (with TOTP code)" width="100%" />
+</p>
+
+| In-app Update | Settings |
+|:---:|:---:|
+| ![](docs/screenshots/securevault-update.png) | ![](docs/screenshots/securevault-settings.png) |
+
+<p align="center">
+  <img src="docs/screenshots/securevault-audit.png" alt="Security audit: score, weak and leaked passwords" width="100%" />
+</p>
+
+---
+
 ## 🔒 Security Architecture
 
 | Layer | Algorithm | Description |

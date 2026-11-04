@@ -63,6 +63,9 @@ import { PasswordGenerator } from "./components/PasswordGenerator";
 import { BrowserExtensionHub } from "./components/BrowserExtensionHub";
 import { BrowserImportPreview } from "./components/BrowserImportPreview";
 import { DatePicker } from "./components/DatePicker";
+import UpdateModal, { type UpdatePhase } from "./components/UpdateModal";
+import UpToDateModal from "./components/UpToDateModal";
+import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/browserImport";
 import { convertKdbxPayload } from "./utils/kdbxImport";
 import { extractOtpSecret } from "./utils/otp";
@@ -241,10 +244,48 @@ export default function App() {
   const [updaterChecking, setUpdaterChecking] = useState(false);
   const [updaterStatus, setUpdaterStatus] = useState<string>("");
   const [updaterAvailable, setUpdaterAvailable] = useState<null | { version: string; body?: string }>(null);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updatePhase, setUpdatePhase] = useState<UpdatePhase>("idle");
+  const [updateProgress, setUpdateProgress] = useState(0);
+  const [updateError, setUpdateError] = useState("");
+  const [upToDateModalOpen, setUpToDateModalOpen] = useState(false);
+  // NEW 徽章 = 有可用更新（派生状态）：升级到新版本重启后 updaterAvailable 为空，徽章自然消失
+  const updateBadge = !!updaterAvailable;
   useEffect(() => {
     getVersion().then(setAppVersion).catch(() => {});
   }, []);
   const isLinuxPlatform = navigator.platform.toLowerCase().includes("linux");
+
+  // 启动即静默检查更新（不等解锁；24h 节流；Linux 走 AppImageUpdate 不检查，失败静默）
+  // 结果存入 state，解锁进入主界面后设置图标直接显示 NEW 徽章
+  useEffect(() => {
+    if (isLinuxPlatform) return;
+    const CHECK_INTERVAL = 24 * 60 * 60 * 1000;
+    try {
+      const last = Number(localStorage.getItem("sv-last-update-check") || 0);
+      if (Date.now() - last < CHECK_INTERVAL) return;
+    } catch { /* localStorage 不可用时按未检查处理 */ }
+    const timer = setTimeout(async () => {
+      try {
+        const update = await check();
+        try { localStorage.setItem("sv-last-update-check", String(Date.now())); } catch { /* ignore */ }
+        if (update) {
+          setUpdaterAvailable({ version: update.version, body: update.body || "" });
+        }
+      } catch {
+        /* 静默：网络受限或尚未发布新版本，不打扰用户 */
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [isLinuxPlatform]);
+
+  /** 打开更新弹窗 */
+  const openUpdateModal = () => {
+    setUpdatePhase("idle");
+    setUpdateProgress(0);
+    setUpdateError("");
+    setUpdateModalOpen(true);
+  };
 
   const handleCheckUpdate = async () => {
     if (isLinuxPlatform) {
@@ -258,9 +299,10 @@ export default function App() {
       const update = await check();
       if (update) {
         setUpdaterAvailable({ version: update.version, body: update.body || "" });
-        setUpdaterStatus(t("发现新版本"));
+        setUpdaterStatus(""); // 按钮本身已显示「发现新版本 vX」，避免重复
+        openUpdateModal();
       } else {
-        setUpdaterStatus(t("已是最新版本"));
+        setUpToDateModalOpen(true);
       }
     } catch (e) {
       console.error("检查更新失败:", e);
@@ -276,35 +318,38 @@ export default function App() {
     }
   };
 
+  /** 弹窗内安装：驱动进度条状态机 */
   const handleInstallUpdate = async () => {
+    setUpdatePhase("downloading");
+    setUpdateProgress(0);
+    setUpdateError("");
     try {
       const update = await check();
       if (!update) {
+        setUpdatePhase("idle");
         setUpdaterStatus(t("已是最新版本"));
         return;
       }
-      setUpdaterChecking(true);
-      setUpdaterStatus(t("正在下载更新..."));
       let downloaded = 0, total = 0;
       await update.downloadAndInstall((event) => {
         if (event.event === "Started") {
           total = event.data.contentLength || 0;
         } else if (event.event === "Progress") {
           downloaded += event.data.chunkLength;
-          if (total > 0) setUpdaterStatus(t("正在下载更新...") + " " + Math.round(downloaded / total * 100) + "%");
+          if (total > 0) setUpdateProgress(Math.round((downloaded / total) * 100));
         } else if (event.event === "Finished") {
-          setUpdaterStatus(t("下载完成，正在安装..."));
+          setUpdatePhase("installing");
         }
       });
       await relaunch();
     } catch (e) {
       console.error("安装更新失败:", e);
-      setUpdaterStatus(
+      setUpdatePhase("error");
+      setUpdateError(
         /Failed to fetch|Network request|timed out|dns error|error sending request/i.test(String(e))
           ? t("下载更新失败，请检查网络后重试。")
           : t("❌ 安装更新失败") + ": " + localizeError(e)
       );
-      setUpdaterChecking(false);
     }
   };
 
@@ -1530,7 +1575,7 @@ export default function App() {
                           <button
                             type="button"
                             onClick={() => { setSelectedFolder("settings"); setSelectedItemType("all"); setSelectedItemId(null); setIsCreating(false); setIsEditing(false); }}
-                            className={`p-2 rounded-lg transition-colors border cursor-pointer shadow-sm flex items-center justify-center shrink-0 ${
+                            className={`relative p-2 rounded-lg transition-colors border cursor-pointer shadow-sm flex items-center justify-center shrink-0 ${
                               selectedFolder === "settings"
                                 ? "bg-indigo-50 border-indigo-200 text-indigo-600"
                                 : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700"
@@ -1538,6 +1583,11 @@ export default function App() {
                             title={t("打开设置中心")}
                           >
                             <Settings className="w-3.5 h-3.5 animate-spin-hover" />
+                            {updateBadge && (
+                              <span className="absolute -top-1.5 -right-2 px-1 py-0.5 bg-rose-500 text-white text-[7px] font-black rounded-full leading-none shadow-sm tracking-wider">
+                                NEW
+                              </span>
+                            )}
                           </button>
 
                           <button 
@@ -2491,24 +2541,14 @@ export default function App() {
                                     <div className="pt-3 space-y-3">
                                     <div className="flex items-center justify-between gap-3">
                                       <span className="text-[11px] font-mono text-slate-600">{t("当前版本")}: {appVersion || "…"}</span>
-                                      <button type="button" onClick={handleCheckUpdate} disabled={updaterChecking}
-                                        className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center space-x-1.5 shrink-0">
+                                      <button type="button"
+                                        onClick={updaterAvailable ? openUpdateModal : handleCheckUpdate}
+                                        disabled={updaterChecking}
+                                        className={`bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer disabled:cursor-not-allowed flex items-center space-x-1.5 shrink-0 ${updaterAvailable ? "ring-2 ring-indigo-200" : ""}`}>
                                         {updaterChecking && <RefreshCw className="w-3 h-3 animate-spin" />}
-                                        <span>{updaterChecking ? t("检查中...") : t("检查更新")}</span>
+                                        <span>{updaterChecking ? t("检查中...") : updaterAvailable ? `${t("发现新版本")} v${updaterAvailable.version}` : t("检查更新")}</span>
                                       </button>
                                     </div>
-                                    {updaterAvailable && (
-                                      <div className="bg-indigo-50/60 border border-indigo-100 rounded-lg p-3 space-y-2">
-                                        <p className="text-[11px] font-bold text-indigo-700">{t("发现新版本")}: v{updaterAvailable.version}</p>
-                                        {updaterAvailable.body && (
-                                          <p className="text-[10px] text-slate-600 whitespace-pre-wrap leading-relaxed max-h-32 overflow-y-auto">{updaterAvailable.body}</p>
-                                        )}
-                                        <button type="button" onClick={handleInstallUpdate} disabled={updaterChecking}
-                                          className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white font-bold text-xs py-2 rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed">
-                                          {t("下载并安装")}
-                                        </button>
-                                      </div>
-                                    )}
                                     {updaterStatus && <p className="text-[10px] text-slate-500 leading-relaxed break-words max-h-20 overflow-y-auto">{updaterStatus}</p>}
                                     </div>
                                   </div>
@@ -2908,6 +2948,27 @@ export default function App() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+
+      {/* Up-to-date result modal */}
+      <UpToDateModal
+        open={upToDateModalOpen}
+        currentVersion={appVersion}
+        onClose={() => setUpToDateModalOpen(false)}
+      />
+
+      {/* In-app update modal (Clash Verge style) */}
+      <UpdateModal
+        open={updateModalOpen && !!updaterAvailable}
+        version={updaterAvailable?.version || ""}
+        currentVersion={appVersion}
+        notes={updaterAvailable?.body || ""}
+        phase={updatePhase}
+        progress={updateProgress}
+        error={updateError}
+        onClose={() => setUpdateModalOpen(false)}
+        onInstall={handleInstallUpdate}
+        onOpenRelease={() => openUrl(`https://github.com/NovanJex/SecureVault/releases/tag/v${updaterAvailable?.version || ""}`)}
+      />
     </div>
   );
 }

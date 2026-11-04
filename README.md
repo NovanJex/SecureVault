@@ -45,6 +45,22 @@
 
 ---
 
+## 📷 界面预览
+
+<p align="center">
+  <img src="docs/screenshots/securevault-main.png" alt="主界面：凭证列表与详情（含 TOTP 动态码）" width="100%" />
+</p>
+
+| 应用内更新 | 设置中心 |
+|:---:|:---:|
+| ![](docs/screenshots/securevault-update.png) | ![](docs/screenshots/securevault-settings.png) |
+
+<p align="center">
+  <img src="docs/screenshots/securevault-audit.png" alt="安全审计：评分、弱密码与泄露检测" width="100%" />
+</p>
+
+---
+
 ## 🔒 安全架构
 
 | 层级 | 算法 | 说明 |
