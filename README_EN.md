@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.7.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.7.1-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -219,6 +219,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.7.1` | 2026-11-04 | In-app update dialog, startup update check with NEW badge, up-to-date dialog, leaner release assets, README screenshots |
 | `v1.7.0` | 2026-10-31 | Custom data directory, in-app updates, multilingual extension template, bilingual release notes, localized backend errors |
 | `v1.6.0` | 2026-10-23 | Password history, trash, recent-use sorting, security reports, AppImage auto-updates |
 | `v1.5.5` | 2026-10-09 | Multi-language UI (follows system locale, English fallback) |

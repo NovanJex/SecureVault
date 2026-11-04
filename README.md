@@ -5,7 +5,7 @@
 <h1 align="center">SecureVault</h1>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-1.7.0-blue.svg" alt="version" />
+  <img src="https://img.shields.io/badge/version-1.7.1-blue.svg" alt="version" />
   <img src="https://img.shields.io/badge/Tauri-v2-FFC131?logo=tauri" alt="Tauri" />
   <img src="https://img.shields.io/badge/React-19-61DAFB?logo=react" alt="React" />
   <img src="https://img.shields.io/badge/Rust-🦀-orange?logo=rust" alt="Rust" />
@@ -217,6 +217,7 @@ npm run tauri build
 
 | 版本 | 日期 | 说明 |
 | --- | --- | --- |
+| `v1.7.1` | 2026-11-04 | 应用内更新弹窗、启动自动检查与 NEW 徽章、「已是最新版本」弹窗、Release 资产精简、README 界面预览 |
 | `v1.7.0` | 2026-10-31 | 自定义数据目录、应用内在线更新、扩展模板多语言、Release 说明双语、后端错误消息多语言 |
 | `v1.6.0` | 2026-10-23 | 密码历史版本、回收站、最近使用排序、安全报告导出、AppImage 自动更新 |
 | `v1.5.5` | 2026-10-09 | 界面多语言（跟随系统语言，非中文环境自动英文）|
