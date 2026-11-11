@@ -47,7 +47,7 @@ import { relaunch } from '@tauri-apps/plugin-process';
 import { open as shellOpen } from '@tauri-apps/plugin-shell';
 import { ItemType, VaultItem, VaultFolder } from "./types";
 import { secureRandomIndex } from "./utils/vaultStorage";
-import { decryptVault, deriveMasterKey, exportKdbx, importKdbx, getDataDir, setDataDir } from "./utils/tauriBridge";
+import { decryptVault, deriveMasterKey, exportKdbx, importKdbx } from "./utils/tauriBridge";
 import { invoke } from '@tauri-apps/api/core';
 import { useVault } from "./hooks/useVault";
 import { usePasswordGenerator } from "./hooks/usePasswordGenerator";
@@ -65,6 +65,8 @@ import { BrowserImportPreview } from "./components/BrowserImportPreview";
 import { DatePicker } from "./components/DatePicker";
 import UpdateModal, { type UpdatePhase } from "./components/UpdateModal";
 import UpToDateModal from "./components/UpToDateModal";
+import WebDavCard from "./components/WebDavCard";
+import VaultBackupCard from "./components/VaultBackupCard";
 import { open as openUrl } from "@tauri-apps/plugin-shell";
 import { importBrowserFile, checkDuplicates, type ImportResult } from "./utils/browserImport";
 import { convertKdbxPayload } from "./utils/kdbxImport";
@@ -350,40 +352,6 @@ export default function App() {
           ? t("下载更新失败，请检查网络后重试。")
           : t("❌ 安装更新失败") + ": " + localizeError(e)
       );
-    }
-  };
-
-  // 数据存储目录（自定义目录 = 用户可放入同步盘实现跨设备同步）
-  const [dataDir, setDataDirPath] = useState<string>("");
-  useEffect(() => {
-    getDataDir().then(setDataDirPath).catch(() => {});
-  }, []);
-
-  /** 更改数据目录：选择文件夹 → 询问是否迁移 → 保存配置 → 重新加载 */
-  const handleChangeDataDir = async () => {
-    try {
-      const selected = await open({ directory: true, multiple: false, title: t("选择数据存储目录") });
-      if (!selected) return;
-      const dir = Array.isArray(selected) ? selected[0] : selected as string;
-      if (!dir) return;
-      const migrate = window.confirm(t("是否将现有保险箱数据迁移到新目录？（确定=迁移，取消=不迁移）"));
-      await setDataDir(dir, migrate);
-      window.alert(t("数据目录已更改，应用将重新加载。请用主密码重新解锁。"));
-      window.location.reload();
-    } catch (e) {
-      showToast(t("❌ 更改数据目录失败: ") + localizeError(e));
-    }
-  };
-
-  /** 恢复默认数据目录（可选迁移当前数据） */
-  const handleResetDataDir = async () => {
-    const migrate = window.confirm(t("恢复默认数据目录并迁移现有数据？（确定=迁移，取消=不迁移）"));
-    try {
-      await setDataDir(null, migrate);
-      window.alert(t("已恢复默认数据目录，应用将重新加载。"));
-      window.location.reload();
-    } catch (e) {
-      showToast(t("❌ 恢复默认目录失败: ") + localizeError(e));
     }
   };
 
@@ -2555,32 +2523,11 @@ export default function App() {
                                 </div>
                               </div>
 
-                              {/* Data directory card */}
-                              <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-4 text-left">
-                                <div className="border-b border-slate-100 pb-4">
-                                  <h4 className="text-xs font-black text-slate-800 flex items-center space-x-2 uppercase tracking-wide">
-                                    <Folder className="w-4 h-4 text-indigo-500" />
-                                    <span>{t("数据存储目录")}</span>
-                                  </h4>
-                                  <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                                    {t("把此目录放入 OneDrive / 坚果云 / NAS 等同步盘，即可在多台设备间自动同步加密保险箱。同一时间建议只在一台设备编辑。")}
-                                  </p>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <div className="flex-1 min-w-[180px] flex items-center space-x-2 bg-slate-50 border border-slate-200/60 rounded-lg px-3 py-2">
-                                    <Folder className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                    <span className="flex-1 text-[11px] font-mono text-slate-700 truncate select-all" title={dataDir}>{dataDir || "…"}</span>
-                                  </div>
-                                  <button type="button" onClick={handleResetDataDir}
-                                    className="shrink-0 text-[11px] font-medium text-slate-500 hover:text-slate-700 transition-colors cursor-pointer px-1 py-1">
-                                    {t("恢复默认目录")}
-                                  </button>
-                                  <button type="button" onClick={handleChangeDataDir}
-                                    className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors shadow-sm cursor-pointer">
-                                    {t("更改目录")}
-                                  </button>
-                                </div>
-                              </div>
+                              {/* Local auto backups (v1.8.0) */}
+                              <VaultBackupCard />
+
+                              {/* WebDAV sync (v1.8.0) */}
+                              <WebDavCard masterKey={masterKey} />
 
                             </div>
                           </div>
@@ -2594,6 +2541,7 @@ export default function App() {
                           reusedCount={reusedCount}
                           compromisedCount={compromisedCount}
                           expiredCount={activeItems.filter(i => isExpired(i.expiresAt)).length}
+                          oldCount={auditResult.oldCount}
                           ignoredCount={ignoredCount}
                           passMap={passMap}
                           items={activeItems}

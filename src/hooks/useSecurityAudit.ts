@@ -10,6 +10,8 @@ export interface SecurityAuditResult {
   reusedCount: number;
   compromisedCount: number;
   ignoredCount: number;
+  /** 超过 365 天未更新的条目数（v1.8.0） */
+  oldCount: number;
   passMap: Record<string, number>;
 }
 
@@ -79,7 +81,14 @@ export function useSecurityAudit(items: VaultItem[]): UseSecurityAuditReturn {
 
     const ignoredCount = items.filter(item => item.ignoreSecurityWarning).length;
 
-    return { totalCount, weakCount, reusedCount, compromisedCount, ignoredCount, passMap };
+    // 密码老化：超过 365 天未更新
+    const now = Date.now();
+    const OLD_MS = 365 * 24 * 60 * 60 * 1000;
+    const oldCount = items.filter(
+      (i) => i.updatedAt && now - new Date(i.updatedAt).getTime() > OLD_MS
+    ).length;
+
+    return { totalCount, weakCount, reusedCount, compromisedCount, ignoredCount, oldCount, passMap };
   }, [items]);
 
   return {

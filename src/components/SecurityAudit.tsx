@@ -1,7 +1,7 @@
 // SecurityAudit — 安全审计仪表板（弱密码 / 复用 / 泄露检测）
 
 import React from "react";
-import { ShieldAlert, ShieldCheck, RefreshCw, AlertTriangle, Copy, EyeOff, Download } from "lucide-react";
+import { ShieldAlert, ShieldCheck, RefreshCw, AlertTriangle, Copy, EyeOff, Download, Clock } from "lucide-react";
 import { save } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { t, tf } from "../i18n";
@@ -15,6 +15,8 @@ export interface SecurityAuditProps {
   reusedCount: number;
   compromisedCount: number;
   expiredCount: number;
+  /** 超过 365 天未更新的条目数 */
+  oldCount: number;
   ignoredCount: number;
   passMap: Record<string, number>;
   items: Array<{
@@ -43,7 +45,7 @@ function calcScore(weak: number, reused: number, compromised: number): number {
 
 export const SecurityAudit: React.FC<SecurityAuditProps> = ({
   isAuditScanning, hasAuditScanned,
-  totalCount, weakCount, reusedCount, compromisedCount, expiredCount, ignoredCount,
+  totalCount, weakCount, reusedCount, compromisedCount, expiredCount, oldCount, ignoredCount,
   passMap, items,
   onStartAudit, onFixItem, onToggleIgnore, onCopyPassword, showToast,
 }) => {
@@ -181,11 +183,12 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
                 </div>
                 <div className="md:col-span-2 space-y-4">
                   <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">{t("全库诊断摘要统计")}</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
                     <StatBox label={t("本地总资产条目")} value={tf.auditCount(totalCount)} />
                     <StatBox label={t("弱密码条目")} value={tf.auditCount(weakCount)} color="rose" />
                     <StatBox label={t("复用漏洞条目")} value={tf.auditCount(reusedCount)} color="amber" />
                     <StatBox label={t("到期/过期条目")} value={tf.auditCount(expiredCount)} color={expiredCount > 0 ? "amber" : undefined} />
+                    <StatBox label={t("超过一年未更新")} value={tf.auditCount(oldCount)} color={oldCount > 0 ? "amber" : undefined} />
                   </div>
                   <p className="text-[10px] text-slate-500 leading-relaxed">{t("※ 本报告根据本地沙盒密码交叉解算，无任何数据上传。")}</p>
                 </div>
@@ -224,6 +227,22 @@ export const SecurityAudit: React.FC<SecurityAuditProps> = ({
                       detail={t("⚠️ 通用密码在 HIBP 本地备份集碰撞中已曝光")}
                       btnLabel={t("紧急一键安全重构")} onAction={() => onFixItem(i.id)} danger />
                   ))}
+                </AlertSection>
+
+                {/* Old passwords (>365 days since last update) */}
+                <AlertSection title={tf.oldAlertTitle(oldCount)} icon={<Clock className="w-4 h-4 text-amber-500" />} count={oldCount}
+                  emptyMsg={t("✨ 所有密码均在一年内更新过。")}>
+                  {items.filter(i => {
+                    if (!i.updatedAt) return false;
+                    return Date.now() - new Date(i.updatedAt).getTime() > 365 * 24 * 60 * 60 * 1000;
+                  }).map(i => {
+                    const days = Math.floor((Date.now() - new Date(i.updatedAt!).getTime()) / (24 * 60 * 60 * 1000));
+                    return (
+                      <AlertRow key={i.id} item={i} tag={t("老化")} tagColor="amber"
+                        detail={tf.oldDetail(i.username || t("未知"), days)}
+                        btnLabel={t("修改密码")} onAction={() => onFixItem(i.id)} />
+                    );
+                  })}
                 </AlertSection>
 
                 {/* Ignored */}

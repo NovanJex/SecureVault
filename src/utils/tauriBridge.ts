@@ -37,12 +37,66 @@ export const loadSecureVaultFile = (): Promise<string> => {
   return invoke<string>('load_vault_file');
 };
 
-/** 当前保险箱数据目录（自定义或系统默认） */
-export const getDataDir = (): Promise<string> => invoke<string>('get_data_dir');
+// ============================================================
+// 本地备份轮转（v1.8.0）
+// ============================================================
 
-/** 设置保险箱数据目录（dir=null 恢复系统默认；migrate=true 迁移现有 vault 文件） */
-export const setDataDir = (dir: string | null, migrate: boolean): Promise<void> =>
-  invoke<void>('set_data_dir', { dir, migrate });
+export interface VaultBackupInfo {
+  name: string;
+  size: number;
+  /** 修改时间（Unix 秒字符串） */
+  modified: string | null;
+}
+
+export const listVaultBackups = (): Promise<VaultBackupInfo[]> =>
+  invoke<VaultBackupInfo[]>('list_vault_backups');
+
+export const restoreVaultBackup = (name: string): Promise<void> =>
+  invoke<void>('restore_vault_backup', { name });
+
+// ============================================================
+// WebDAV 应用内同步（v1.8.0）
+// ============================================================
+
+export interface WebDavStat {
+  exists: boolean;
+  size: number;
+  last_modified: string | null;
+  etag: string | null;
+}
+
+export interface WebDavDownload {
+  content: string;
+  stat: WebDavStat;
+}
+
+export interface WebDavConfig {
+  url: string;
+  username: string;
+  /** 用主密钥加密后的密码密文（base64） */
+  passwordEnc: string;
+}
+
+export const webdavTest = (url: string, username: string, password: string): Promise<string> =>
+  invoke<string>('webdav_test', { url, username, password });
+
+export const webdavStat = (url: string, username: string, password: string): Promise<WebDavStat> =>
+  invoke<WebDavStat>('webdav_stat', { url, username, password });
+
+export const webdavUpload = (url: string, username: string, password: string): Promise<WebDavStat> =>
+  invoke<WebDavStat>('webdav_upload', { url, username, password });
+
+export const webdavDownload = (url: string, username: string, password: string): Promise<WebDavDownload> =>
+  invoke<WebDavDownload>('webdav_download', { url, username, password });
+
+export const getWebdavConfig = (): Promise<WebDavConfig | null> =>
+  invoke<WebDavConfig | null>('get_webdav_config');
+
+export const saveWebdavConfig = (url: string, username: string, passwordEnc: string): Promise<void> =>
+  invoke<void>('save_webdav_config', { url, username, passwordEnc });
+
+export const clearWebdavConfig = (): Promise<void> =>
+  invoke<void>('clear_webdav_config');
 
 // ============================================================
 // 辅助命令

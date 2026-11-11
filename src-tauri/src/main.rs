@@ -10,7 +10,7 @@ use pbkdf2::pbkdf2_hmac;
 use sha2::Sha256;
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
 
 // 1. 双算法密钥派生：支持 Argon2id (推荐) 和 PBKDF2-SHA256
@@ -136,92 +136,15 @@ fn read_config(app: &AppHandle) -> serde_json::Value {
     }
 }
 
-/// 当前数据目录：自定义（config.dataDir）优先，否则系统 AppData
-fn resolve_data_dir(app: &AppHandle) -> Result<PathBuf, String> {
-    if let Some(d) = read_config(app).get("dataDir").and_then(|v| v.as_str()) {
-        if !d.trim().is_empty() {
-            return Ok(PathBuf::from(d));
-        }
-    }
-    app.path().app_data_dir()
-        .map_err(|e| format!("ERR_DATA_DIR_RESOLVE: {}", e))
-}
-
-// 获取本地系统安全的本地应用存档路径 (e.g. AppData/Roaming/SecureVault 或自定义目录)
+// 获取本地系统安全的本地应用存档路径 (e.g. AppData/Roaming/SecureVault)
 fn get_vault_path(app: &AppHandle) -> Result<PathBuf, String> {
-    let dir = resolve_data_dir(app)?;
+    let dir = app.path().app_data_dir()
+        .map_err(|e| format!("ERR_DATA_DIR_RESOLVE: {}", e))?;
     if !dir.exists() {
         fs::create_dir_all(&dir)
             .map_err(|e| format!("ERR_DATA_DIR_CREATE: {}", e))?;
     }
     Ok(dir.join("vault.enc"))
-}
-
-/// 获取当前保险箱数据目录（设置页展示用）
-#[tauri::command]
-fn get_data_dir(app: AppHandle) -> Result<String, String> {
-    Ok(resolve_data_dir(&app)?.to_string_lossy().into_owned())
-}
-
-/// 设置保险箱数据目录（dir = None 表示恢复系统默认）。
-/// migrate=true 时把现有 vault.enc 复制到新目录；若目标目录已有 vault.enc 则拒绝，防止覆盖。
-#[tauri::command]
-fn set_data_dir(app: AppHandle, dir: Option<String>, migrate: bool) -> Result<(), String> {
-    let old_vault = get_vault_path(&app)?;
-
-    let new_dir: Option<PathBuf> = match dir.as_deref().map(str::trim).filter(|s| !s.is_empty()) {
-        Some(d) => Some(PathBuf::from(d)),
-        None => None,
-    };
-
-    // 校验目标目录：可创建、可写
-    if let Some(ref nd) = new_dir {
-        if !nd.exists() {
-            fs::create_dir_all(nd)
-                .map_err(|e| format!("ERR_DIR_CREATE: {}", e))?;
-        }
-        let probe = nd.join(".sv_write_probe");
-        fs::write(&probe, b"probe")
-            .map_err(|e| format!("ERR_DIR_UNWRITABLE: {}", e))?;
-        let _ = fs::remove_file(&probe);
-    }
-
-    // 可选迁移现有保险箱文件
-    if migrate {
-        let target_vault = match &new_dir {
-            Some(nd) => nd.join("vault.enc"),
-            None => app.path().app_data_dir()
-                .map_err(|e| format!("ERR_DATA_DIR_RESOLVE: {}", e))?
-                .join("vault.enc"),
-        };
-        if old_vault.exists() && old_vault != target_vault {
-            if target_vault.exists() {
-                return Err("ERR_TARGET_EXISTS: vault.enc already exists in the target folder".to_string());
-            }
-            fs::copy(&old_vault, &target_vault)
-                .map_err(|e| format!("ERR_MIGRATE: {}", e))?;
-        }
-    }
-
-    // 持久化配置
-    let cfg_path = config_file_path(&app)?;
-    let mut cfg = read_config(&app);
-    match new_dir {
-        Some(nd) => {
-            cfg["dataDir"] = serde_json::Value::String(nd.to_string_lossy().into_owned());
-        }
-        None => {
-            if let Some(obj) = cfg.as_object_mut() {
-                obj.remove("dataDir");
-            }
-        }
-    }
-    let serialized = serde_json::to_string_pretty(&cfg)
-        .map_err(|e| format!("ERR_CONFIG_SERIALIZE: {}", e))?;
-    fs::write(&cfg_path, serialized)
-        .map_err(|e| format!("ERR_CONFIG_WRITE: {}", e))?;
-
-    Ok(())
 }
 
 // 4. 原子写入：先写临时文件，成功后再原子重命名，防止写入中断导致数据损坏
@@ -238,6 +161,9 @@ fn save_vault_file(app: AppHandle, ciphertext_b64: String) -> Result<(), String>
     file.flush()
         .map_err(|e| format!("ERR_FLUSH: {}", e))?;
     drop(file);
+
+    // 原子替换前：按需轮转本地备份（尽力而为，失败不影响主保存）
+    backup_vault_if_due(&app, &file_path, false);
 
     // 原子替换
     fs::rename(&tmp_path, &file_path)
@@ -639,6 +565,354 @@ fn import_kdbx(path: String, password: String) -> Result<String, String> {
     }).to_string())
 }
 
+
+// ============================================================
+// 本地备份轮转（v1.8.0）
+// 每次保存时若距上次备份 >= 10 分钟，把旧 vault 文件复制到 backups/，
+// 保留最近 5 份；恢复某份备份前会强制备份当前文件。
+// ============================================================
+
+const BACKUP_INTERVAL_SECS: u64 = 10 * 60;
+const BACKUP_KEEP: usize = 5;
+
+fn backups_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let dir = app.path().app_data_dir()
+        .map_err(|e| format!("ERR_DATA_DIR_RESOLVE: {}", e))?;
+    let b = dir.join("backups");
+    if !b.exists() {
+        fs::create_dir_all(&b).map_err(|e| format!("ERR_DATA_DIR_CREATE: {}", e))?;
+    }
+    Ok(b)
+}
+
+/// 轮转备份：force=false 时受 10 分钟间隔限制；force=true 立即备份。
+fn backup_vault_if_due(app: &AppHandle, vault_path: &Path, force: bool) {
+    if !vault_path.exists() {
+        return;
+    }
+    let Ok(bdir) = backups_dir(app) else { return };
+
+    if !force {
+        let newest = fs::read_dir(&bdir).ok().and_then(|rd| {
+            rd.filter_map(|e| e.ok())
+                .filter_map(|e| e.metadata().ok().and_then(|m| m.modified().ok()))
+                .max()
+        });
+        if let Some(t) = newest {
+            if let Ok(elapsed) = std::time::SystemTime::now().duration_since(t) {
+                if elapsed.as_secs() < BACKUP_INTERVAL_SECS {
+                    return;
+                }
+            }
+        }
+    }
+
+    let ts = chrono::Local::now().format("%Y%m%d-%H%M%S-%3f").to_string();
+    let dest = bdir.join(format!("vault-{}.enc", ts));
+    if fs::copy(vault_path, &dest).is_err() {
+        return;
+    }
+    prune_backups(&bdir);
+}
+
+fn prune_backups(bdir: &Path) {
+    if let Ok(rd) = fs::read_dir(bdir) {
+        let mut entries: Vec<PathBuf> = rd
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| {
+                p.file_name()
+                    .and_then(|n| n.to_str())
+                    .map(|n| n.starts_with("vault-") && n.ends_with(".enc"))
+                    .unwrap_or(false)
+            })
+            .collect();
+        entries.sort();
+        while entries.len() > BACKUP_KEEP {
+            let oldest = entries.remove(0);
+            let _ = fs::remove_file(oldest);
+        }
+    }
+}
+
+#[derive(serde::Serialize)]
+struct VaultBackupInfo {
+    name: String,
+    size: u64,
+    /// 修改时间（Unix 秒，字符串便于前端直接使用）
+    modified: Option<String>,
+}
+
+#[tauri::command]
+fn list_vault_backups(app: AppHandle) -> Result<Vec<VaultBackupInfo>, String> {
+    let bdir = backups_dir(&app)?;
+    let mut out = Vec::new();
+    if let Ok(rd) = fs::read_dir(&bdir) {
+        for e in rd.flatten() {
+            let name = e.file_name().to_string_lossy().into_owned();
+            if !name.starts_with("vault-") || !name.ends_with(".enc") {
+                continue;
+            }
+            let meta = e.metadata().ok();
+            out.push(VaultBackupInfo {
+                name,
+                size: meta.as_ref().map(|m| m.len()).unwrap_or(0),
+                modified: meta
+                    .and_then(|m| m.modified().ok())
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs().to_string()),
+            });
+        }
+    }
+    out.sort_by(|a, b| b.name.cmp(&a.name)); // 最新在前
+    Ok(out)
+}
+
+#[tauri::command]
+fn restore_vault_backup(app: AppHandle, name: String) -> Result<(), String> {
+    // 防路径穿越：仅允许 vault-*.enc 且不含路径分隔符
+    if !name.starts_with("vault-")
+        || !name.ends_with(".enc")
+        || name.contains('/')
+        || name.contains('\\')
+        || name.contains("..")
+    {
+        return Err("ERR_BACKUP_NAME: 备份文件名无效".to_string());
+    }
+    let bdir = backups_dir(&app)?;
+    let src = bdir.join(&name);
+    if !src.exists() {
+        return Err("ERR_BACKUP_NOT_FOUND: 备份文件不存在".to_string());
+    }
+    let vault_path = get_vault_path(&app)?;
+    // 恢复前强制备份当前文件，避免误操作丢失最新数据
+    backup_vault_if_due(&app, &vault_path, true);
+    fs::copy(&src, &vault_path).map_err(|e| format!("ERR_MIGRATE: {}", e))?;
+    Ok(())
+}
+
+// ============================================================
+// WebDAV 应用内同步（v1.8.0，方案 B：密文上传，服务端零知识）
+// 凭据以「主密钥加密后的密文」存入 config.json，不落明文。
+// ============================================================
+
+#[derive(serde::Serialize)]
+struct WebDavStat {
+    exists: bool,
+    size: u64,
+    last_modified: Option<String>,
+    etag: Option<String>,
+}
+
+#[derive(serde::Serialize)]
+struct WebDavDownload {
+    content: String,
+    stat: WebDavStat,
+}
+
+/// 仅允许 https://（本地开发测试允许 http://localhost / 127.0.0.1）
+fn validate_webdav_url(url: &str) -> Result<(), String> {
+    let u = url.trim();
+    if u.is_empty() {
+        return Err("ERR_WEBDAV_URL: 请填写服务器文件地址".to_string());
+    }
+    if u.starts_with("https://")
+        || u.starts_with("http://localhost")
+        || u.starts_with("http://127.0.0.1")
+    {
+        return Ok(());
+    }
+    Err("ERR_WEBDAV_URL: 仅支持 https:// 服务器地址（本地测试除外）".to_string())
+}
+
+fn webdav_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(45))
+        .build()
+        .map_err(|e| format!("ERR_WEBDAV_CLIENT: {}", e))
+}
+
+fn etag_of(headers: &reqwest::header::HeaderMap) -> Option<String> {
+    headers
+        .get(reqwest::header::ETAG)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.trim_matches('"').to_string())
+}
+
+fn last_modified_of(headers: &reqwest::header::HeaderMap) -> Option<String> {
+    headers
+        .get(reqwest::header::LAST_MODIFIED)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+}
+
+fn map_webdav_status(code: u16, action: &str) -> String {
+    if code == 401 || code == 403 {
+        "ERR_WEBDAV_AUTH: 认证失败，请检查用户名与应用专用密码".to_string()
+    } else {
+        format!("ERR_WEBDAV_STATUS: {}失败，服务器返回 HTTP {}", action, code)
+    }
+}
+
+#[tauri::command]
+async fn webdav_test(url: String, username: String, password: String) -> Result<String, String> {
+    validate_webdav_url(&url)?;
+    let client = webdav_client()?;
+    let resp = client
+        .head(url.trim())
+        .basic_auth(&username, Some(&password))
+        .send()
+        .await
+        .map_err(|e| format!("ERR_WEBDAV_NET: {}", e))?;
+    let code = resp.status().as_u16();
+    match code {
+        200..=299 => Ok(format!("HTTP {} · 文件已存在", code)),
+        404 => Ok("HTTP 404 · 连接成功，服务器上尚无 vault.enc（首次同步将上传）".to_string()),
+        401 | 403 => Err(map_webdav_status(code, "连接测试")),
+        _ => Err(map_webdav_status(code, "连接测试")),
+    }
+}
+
+#[tauri::command]
+async fn webdav_stat(url: String, username: String, password: String) -> Result<WebDavStat, String> {
+    validate_webdav_url(&url)?;
+    let client = webdav_client()?;
+    let resp = client
+        .head(url.trim())
+        .basic_auth(&username, Some(&password))
+        .send()
+        .await
+        .map_err(|e| format!("ERR_WEBDAV_NET: {}", e))?;
+    let code = resp.status().as_u16();
+    if code == 404 {
+        return Ok(WebDavStat { exists: false, size: 0, last_modified: None, etag: None });
+    }
+    if !(200..=299).contains(&code) {
+        return Err(map_webdav_status(code, "读取服务器状态"));
+    }
+    Ok(WebDavStat {
+        exists: true,
+        size: resp.content_length().unwrap_or(0),
+        last_modified: last_modified_of(resp.headers()),
+        etag: etag_of(resp.headers()),
+    })
+}
+
+#[tauri::command]
+async fn webdav_upload(
+    app: AppHandle,
+    url: String,
+    username: String,
+    password: String,
+) -> Result<WebDavStat, String> {
+    validate_webdav_url(&url)?;
+    let vault_path = get_vault_path(&app)?;
+    if !vault_path.exists() {
+        return Err("ERR_WEBDAV_EMPTY: 本地保险箱文件不存在，无法上传".to_string());
+    }
+    let content = std::fs::read_to_string(&vault_path)
+        .map_err(|e| format!("ERR_STORAGE_READ: {}", e))?;
+
+    let client = webdav_client()?;
+    let resp = client
+        .put(url.trim())
+        .basic_auth(&username, Some(&password))
+        .header(reqwest::header::CONTENT_TYPE, "text/plain; charset=utf-8")
+        .body(content)
+        .send()
+        .await
+        .map_err(|e| format!("ERR_WEBDAV_NET: {}", e))?;
+    let code = resp.status().as_u16();
+    if !(200..=299).contains(&code) {
+        return Err(map_webdav_status(code, "上传"));
+    }
+    // 部分服务器 PUT 响应不含 ETag → 再 HEAD 一次取元数据
+    let stat_resp = client
+        .head(url.trim())
+        .basic_auth(&username, Some(&password))
+        .send()
+        .await
+        .map_err(|e| format!("ERR_WEBDAV_NET: {}", e))?;
+    Ok(WebDavStat {
+        exists: true,
+        size: stat_resp.content_length().unwrap_or(0),
+        last_modified: last_modified_of(stat_resp.headers()),
+        etag: etag_of(stat_resp.headers()),
+    })
+}
+
+#[tauri::command]
+async fn webdav_download(
+    url: String,
+    username: String,
+    password: String,
+) -> Result<WebDavDownload, String> {
+    validate_webdav_url(&url)?;
+    let client = webdav_client()?;
+    let resp = client
+        .get(url.trim())
+        .basic_auth(&username, Some(&password))
+        .send()
+        .await
+        .map_err(|e| format!("ERR_WEBDAV_NET: {}", e))?;
+    let code = resp.status().as_u16();
+    if code == 404 {
+        return Err("ERR_WEBDAV_NOT_FOUND: 服务器上不存在 vault.enc".to_string());
+    }
+    if !(200..=299).contains(&code) {
+        return Err(map_webdav_status(code, "下载"));
+    }
+    let stat = WebDavStat {
+        exists: true,
+        size: resp.content_length().unwrap_or(0),
+        last_modified: last_modified_of(resp.headers()),
+        etag: etag_of(resp.headers()),
+    };
+    let content = resp.text().await.map_err(|e| format!("ERR_WEBDAV_READ: {}", e))?;
+    Ok(WebDavDownload { content, stat })
+}
+
+// ---------- WebDAV 配置（config.json） ----------
+
+#[tauri::command]
+fn get_webdav_config(app: AppHandle) -> Result<Option<serde_json::Value>, String> {
+    Ok(read_config(&app).get("webdav").cloned())
+}
+
+#[tauri::command]
+fn save_webdav_config(
+    app: AppHandle,
+    url: String,
+    username: String,
+    password_enc: String,
+) -> Result<(), String> {
+    validate_webdav_url(&url)?;
+    let cfg_path = config_file_path(&app)?;
+    let mut cfg = read_config(&app);
+    cfg["webdav"] = serde_json::json!({
+        "url": url.trim(),
+        "username": username,
+        "passwordEnc": password_enc,
+    });
+    let serialized = serde_json::to_string_pretty(&cfg)
+        .map_err(|e| format!("ERR_CONFIG_SERIALIZE: {}", e))?;
+    fs::write(&cfg_path, serialized).map_err(|e| format!("ERR_CONFIG_WRITE: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+fn clear_webdav_config(app: AppHandle) -> Result<(), String> {
+    let cfg_path = config_file_path(&app)?;
+    let mut cfg = read_config(&app);
+    if let Some(obj) = cfg.as_object_mut() {
+        obj.remove("webdav");
+    }
+    let serialized = serde_json::to_string_pretty(&cfg)
+        .map_err(|e| format!("ERR_CONFIG_SERIALIZE: {}", e))?;
+    fs::write(&cfg_path, serialized).map_err(|e| format!("ERR_CONFIG_WRITE: {}", e))?;
+    Ok(())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_clipboard_manager::init())
@@ -657,8 +931,15 @@ fn main() {
             decrypt_vault,
             save_vault_file,
             load_vault_file,
-            get_data_dir,
-            set_data_dir,
+            list_vault_backups,
+            restore_vault_backup,
+            webdav_test,
+            webdav_stat,
+            webdav_upload,
+            webdav_download,
+            get_webdav_config,
+            save_webdav_config,
+            clear_webdav_config,
             write_export_file,
             read_export_file,
             compute_sha256,

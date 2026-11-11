@@ -4,6 +4,30 @@ English release notes. Only versions with English notes are listed here (startin
 
 ---
 
+## v1.8.0 (2026-11-11)
+
+### 🆕 New
+
+**WebDAV In-App Sync**
+- New "WebDAV Sync" section in Settings: supports Nutstore / NAS / Nextcloud and other WebDAV servers
+- Upload/download the encrypted vault directly; the server only stores ciphertext (zero-knowledge)
+- Smart sync: detects which side is newer; on conflict offers a 3-way choice (overwrite server / overwrite local / cancel)
+- Credentials are encrypted with the master key, never stored in plaintext; https only (except local test addresses)
+
+**Local Auto Backups**
+- Keeps the 5 most recent backups on every save (at least 10 minutes apart)
+- Browse and restore backups in Settings (current data is backed up before restoring)
+
+**Password Aging**
+- New "older than 1 year" dimension and statistic in the security audit
+
+### 🔨 Optimized
+
+**Feature Consolidation**
+- Removed the custom data directory feature (overlapped with WebDAV sync, which replaces it)
+
+---
+
 ## v1.7.1 (2026-11-04)
 
 ### 🆕 New

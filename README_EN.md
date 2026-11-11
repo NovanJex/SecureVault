@@ -71,7 +71,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 | Data Encryption | **AES-256-GCM** | Random 12-byte nonce, authenticated encryption, tamper-proof |
 | File I/O | Atomic write (temp + rename) | Prevents corruption on unexpected shutdown |
 | Integrity | **SHA-256** checksum | Verified on every backup import |
-| Storage | OS app data directory / custom directory | Defaults to `%LOCALAPPDATA%` (Windows) / `Application Support` (macOS); can be pointed at a sync folder in Settings |
+| Storage | OS app data directory | `%LOCALAPPDATA%` (Windows) / `Application Support` (macOS) |
 
 ---
 
@@ -99,6 +99,7 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 
 - **Weak password detection** — Shannon entropy estimation
 - **Reuse collision** — cross-service password reuse detection
+- **Password aging** — detects passwords not updated in over 365 days
 - **Compromised check** — matches against known leaked password patterns
 - **One-click fix** — auto-generate strong replacement passwords
 - **Report export** — one-click CSV health report (Excel-friendly, no plaintext passwords)
@@ -115,7 +116,8 @@ Get the latest version from [Releases](https://github.com/NovanJex/SecureVault/r
 - **Multi-language UI** — follows the system locale (Chinese, English fallback)
 - **In-app updates** (Windows / macOS) — check, verify (minisign), download and install from Settings, then relaunch
 - **AppImage auto-update** — ships `.upd_info` + `.zsync` for AppImageUpdate
-- **Custom data directory** — put the vault in OneDrive / Nutstore / a NAS sync folder to share it across devices
+- **WebDAV sync** — built-in WebDAV client (Nutstore / NAS / Nextcloud); ciphertext upload, zero-knowledge server, smart sync with 3-way conflict resolution
+- **Local auto backups** — keeps the 5 most recent backups on every save, one-click restore
 - **Multilingual extension template** — generated browser extension follows the UI language (Chinese / English)
 
 ---
@@ -219,6 +221,7 @@ Output: `src-tauri/target/release/bundle/nsis/` (Windows NSIS installer).
 
 | Version | Date | Notes |
 | --- | --- | --- |
+| `v1.8.0` | 2026-11-11 | WebDAV in-app sync, local auto backups, password aging; removed custom data directory (replaced by WebDAV sync) |
 | `v1.7.1` | 2026-11-04 | In-app update dialog, startup update check with NEW badge, up-to-date dialog, leaner release assets, README screenshots |
 | `v1.7.0` | 2026-10-31 | Custom data directory, in-app updates, multilingual extension template, bilingual release notes, localized backend errors |
 | `v1.6.0` | 2026-10-23 | Password history, trash, recent-use sorting, security reports, AppImage auto-updates |
